@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Track your weight loss journey with streaks, fasting timer, and progress analytics">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>GitSlim - Weight Tracker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Onboarding -->
+    <div id="onboarding" class="screen hidden">
+      <div class="onboard-content">
+        <div class="onboard-icon">&#9889;</div>
+        <h1>GitSlim</h1>
+        <p class="tagline">Your weight loss command line</p>
+        <div class="onboard-form">
+          <label>What's your name?</label>
+          <input type="text" id="onboard-name" placeholder="Your name" autocomplete="given-name">
+          <label>Current weight</label>
+          <div class="input-row">
+            <input type="number" id="onboard-weight" placeholder="185" step="0.1" inputmode="decimal">
+            <select id="onboard-unit">
+              <option value="lbs">lbs</option>
+              <option value="kg">kg</option>
+            </select>
+          </div>
+          <label>Goal weight</label>
+          <div class="input-row">
+            <input type="number" id="onboard-goal" placeholder="165" step="0.1" inputmode="decimal">
+          </div>
+          <label>Height (for BMI)</label>
+          <div class="input-row">
+            <input type="number" id="onboard-height-ft" placeholder="5" min="3" max="8" inputmode="numeric">
+            <span class="unit-label">ft</span>
+            <input type="number" id="onboard-height-in" placeholder="10" min="0" max="11" inputmode="numeric">
+            <span class="unit-label">in</span>
+          </div>
+          <button id="onboard-start" class="btn-primary">Start My Journey</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboard" class="screen hidden">
+      <!-- Header -->
+      <header class="dash-header">
+        <div class="header-left">
+          <span class="logo">&#9889; GitSlim</span>
+        </div>
+        <div class="header-right">
+          <span id="streak-badge" class="streak-badge" title="Logging streak">0 &#128293;</span>
+          <span id="level-badge" class="level-badge" title="Your level">Lv 1</span>
+          <button id="settings-btn" class="icon-btn" title="Settings">&#9881;</button>
+        </div>
+      </header>
+
+      <!-- Quick Log -->
+      <section class="quick-log-section">
+        <div class="quick-log-card">
+          <div class="quick-log-top">
+            <span class="greeting" id="greeting">Good morning!</span>
+            <span class="xp-display" id="xp-display">0 XP</span>
+          </div>
+          <div class="weight-input-area">
+            <input type="number" id="weight-input" class="weight-input" placeholder="---.-" step="0.1" inputmode="decimal">
+            <span class="weight-unit" id="weight-unit-label">lbs</span>
+          </div>
+          <button id="log-weight-btn" class="btn-primary btn-log">Log Weight</button>
+          <div class="quick-stats" id="quick-stats"></div>
+        </div>
+      </section>
+
+      <!-- Fasting Timer -->
+      <section class="fasting-section">
+        <div class="fasting-card" id="fasting-card">
+          <div class="fasting-header">
+            <h3>&#9201; Fasting Timer</h3>
+            <span class="fasting-protocol">Dinner &rarr; 1:00 PM</span>
+          </div>
+          <div class="fasting-ring-container">
+            <svg class="fasting-ring" viewBox="0 0 120 120">
+              <circle class="ring-bg" cx="60" cy="60" r="54" />
+              <circle class="ring-progress" id="fasting-ring-progress" cx="60" cy="60" r="54" />
+            </svg>
+            <div class="fasting-ring-text">
+              <div class="fasting-time" id="fasting-time">--:--</div>
+              <div class="fasting-label" id="fasting-label">remaining</div>
+            </div>
+          </div>
+          <div class="fasting-controls">
+            <button id="fasting-start-btn" class="btn-secondary">Start Fast</button>
+            <button id="fasting-end-btn" class="btn-secondary hidden">End Fast</button>
+          </div>
+          <div class="fasting-streak" id="fasting-streak-display"></div>
+        </div>
+      </section>
+
+      <!-- Progress Chart -->
+      <section class="chart-section">
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3>Progress</h3>
+            <div class="chart-range-btns">
+              <button class="range-btn active" data-range="7">1W</button>
+              <button class="range-btn" data-range="30">1M</button>
+              <button class="range-btn" data-range="90">3M</button>
+              <button class="range-btn" data-range="all">All</button>
+            </div>
+          </div>
+          <canvas id="weight-chart" height="200"></canvas>
+          <div class="chart-summary" id="chart-summary"></div>
+        </div>
+      </section>
+
+      <!-- Stats Grid -->
+      <section class="stats-section">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="stat-current">--</div>
+            <div class="stat-label">Current</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-lost">--</div>
+            <div class="stat-label">Total Lost</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-bmi">--</div>
+            <div class="stat-label">BMI</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-togoal">--</div>
+            <div class="stat-label">To Goal</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-weekly">--</div>
+            <div class="stat-label">Avg/Week</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-best">--</div>
+            <div class="stat-label">Best Week</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Achievements -->
+      <section class="achievements-section">
+        <h3>Achievements</h3>
+        <div class="achievements-grid" id="achievements-grid"></div>
+      </section>
+
+      <!-- History -->
+      <section class="history-section">
+        <h3>Log History</h3>
+        <div class="history-list" id="history-list"></div>
+      </section>
+
+      <!-- Nav Bar (mobile) -->
+      <nav class="bottom-nav">
+        <button class="nav-btn active" data-tab="home" title="Home">
+          <span class="nav-icon">&#127968;</span>
+          <span class="nav-label">Home</span>
+        </button>
+        <button class="nav-btn" data-tab="fasting" title="Fasting">
+          <span class="nav-icon">&#9201;</span>
+          <span class="nav-label">Fasting</span>
+        </button>
+        <button class="nav-btn log-btn-nav" data-tab="log" title="Log">
+          <span class="nav-icon">&#10133;</span>
+        </button>
+        <button class="nav-btn" data-tab="stats" title="Stats">
+          <span class="nav-icon">&#128200;</span>
+          <span class="nav-label">Stats</span>
+        </button>
+        <button class="nav-btn" data-tab="trophies" title="Trophies">
+          <span class="nav-icon">&#127942;</span>
+          <span class="nav-label">Trophies</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Settings</h2>
+          <button id="settings-close" class="icon-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <label>Name</label>
+          <input type="text" id="settings-name">
+          <label>Goal Weight</label>
+          <div class="input-row">
+            <input type="number" id="settings-goal" step="0.1" inputmode="decimal">
+            <span id="settings-unit-label" class="unit-label">lbs</span>
+          </div>
+          <label>Unit</label>
+          <select id="settings-unit">
+            <option value="lbs">lbs</option>
+            <option value="kg">kg</option>
+          </select>
+          <label>Height</label>
+          <div class="input-row">
+            <input type="number" id="settings-height-ft" min="3" max="8" inputmode="numeric">
+            <span class="unit-label">ft</span>
+            <input type="number" id="settings-height-in" min="0" max="11" inputmode="numeric">
+            <span class="unit-label">in</span>
+          </div>
+          <label>Fasting Window</label>
+          <div class="input-row">
+            <select id="settings-fast-start">
+              <option value="18">6:00 PM</option>
+              <option value="19">7:00 PM</option>
+              <option value="20">8:00 PM</option>
+              <option value="21">9:00 PM</option>
+            </select>
+            <span class="unit-label">to</span>
+            <select id="settings-fast-end">
+              <option value="12">12:00 PM</option>
+              <option value="13" selected>1:00 PM</option>
+              <option value="14">2:00 PM</option>
+            </select>
+          </div>
+          <div class="settings-actions">
+            <button id="export-btn" class="btn-secondary">Export Data (CSV)</button>
+            <button id="import-btn" class="btn-secondary">Import Data</button>
+            <input type="file" id="import-file" accept=".csv" class="hidden">
+          </div>
+          <button id="settings-save" class="btn-primary">Save</button>
+          <div class="danger-zone">
+            <button id="reset-btn" class="btn-danger">Reset All Data</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- Achievement Popup -->
+    <div id="achievement-popup" class="achievement-popup hidden">
+      <div class="achievement-popup-content">
+        <div class="achievement-popup-icon" id="achievement-popup-icon"></div>
+        <div class="achievement-popup-title" id="achievement-popup-title"></div>
+        <div class="achievement-popup-desc" id="achievement-popup-desc"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+  </script>
+</body>
+</html>
