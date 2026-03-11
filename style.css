@@ -528,7 +528,9 @@ input:focus, select:focus { border-color: var(--primary); }
   border-radius: var(--radius-sm);
   padding: 12px 16px;
 }
+.history-date-col { display: flex; flex-direction: column; min-width: 70px; }
 .history-date { color: var(--text2); font-size: 0.85rem; }
+.history-time { color: var(--text3); font-size: 0.7rem; }
 .history-weight { font-weight: 700; font-size: 1rem; }
 .history-change { font-size: 0.85rem; font-weight: 600; }
 .history-change.down { color: var(--green); }

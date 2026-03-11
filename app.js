@@ -161,8 +161,27 @@
     const today = dateStr(new Date());
     const existing = state.entries.findIndex(e => e.date === today);
     if (existing >= 0) {
-      state.entries[existing].weight = weight;
-      state.entries[existing].ts = Date.now();
+      // Keep the lower weight for the day
+      const prev = state.entries[existing].weight;
+      if (weight < prev) {
+        state.entries[existing].weight = weight;
+        state.entries[existing].ts = Date.now();
+      } else if (weight >= prev) {
+        // Still record the time but keep the lower weight
+        state.entries[existing].ts = Date.now();
+        showToast(`Keeping today's lower: ${prev.toFixed(1)} ${state.unit} (you entered ${weight.toFixed(1)})`, 'success');
+        // Still feed pet and give XP for logging
+        feedPet('log');
+        addXP(10, 'Weight logged!');
+        const streak = calcStreak();
+        if (streak >= 3) { addXP(5, `${streak}-day streak!`); feedPet('streak'); }
+        if (streak >= 7) addXP(10, '7-day streak bonus!');
+        checkAchievements();
+        save();
+        input.value = '';
+        renderDashboard();
+        return;
+      }
     } else {
       addEntry(weight);
     }
@@ -484,9 +503,13 @@
       const sign = diff <= 0 ? '' : '+';
       const cls = diff < 0 ? 'down' : diff > 0 ? 'up' : '';
       const dateFormatted = formatDate(entry.date);
+      const time = formatTime(entry.ts);
       return `
         <div class="history-item">
-          <div class="history-date">${dateFormatted}</div>
+          <div class="history-date-col">
+            <div class="history-date">${dateFormatted}</div>
+            <div class="history-time">${time}</div>
+          </div>
           <div class="history-weight">${entry.weight.toFixed(1)} ${state.unit}</div>
           <div class="history-change ${cls}">${prev !== null ? `${sign}${diff.toFixed(1)}` : '--'}</div>
           <div class="history-actions">
@@ -829,6 +852,12 @@
     if (str === today) return 'Today';
     if (str === dateStr(yesterday)) return 'Yesterday';
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  function formatTime(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   }
 
   // ===== Toast =====
