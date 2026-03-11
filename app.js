@@ -91,6 +91,8 @@
     $('#export-btn').addEventListener('click', exportCSV);
     $('#import-btn').addEventListener('click', () => $('#import-file').click());
     $('#import-file').addEventListener('change', importCSV);
+    $('#samsung-import-btn').addEventListener('click', () => $('#samsung-import-file').click());
+    $('#samsung-import-file').addEventListener('change', importSamsungHealth);
 
     // Reset
     $('#reset-btn').addEventListener('click', handleReset);
@@ -782,6 +784,149 @@
     };
     reader.readAsText(file);
     e.target.value = '';
+  }
+
+  // ===== Samsung Health Import =====
+  function importSamsungHealth(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target.result;
+      const lines = text.split('\n').filter(l => l.trim());
+      if (lines.length < 2) {
+        showToast('Empty or invalid file', 'error');
+        return;
+      }
+
+      // Parse header to find relevant columns
+      const header = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      // Samsung Health uses fully qualified column names like:
+      // com.samsung.health.weight.weight
+      // com.samsung.health.weight.create_time
+      // Or sometimes just: weight, create_time
+      const weightIdx = header.findIndex(h =>
+        h === 'com.samsung.health.weight.weight' ||
+        h === 'weight' ||
+        h.toLowerCase().endsWith('.weight')
+      );
+      const timeIdx = header.findIndex(h =>
+        h === 'com.samsung.health.weight.create_time' ||
+        h === 'create_time' ||
+        h.toLowerCase().includes('create_time')
+      );
+      // Also check for update_time or start_time as fallbacks
+      const altTimeIdx = timeIdx >= 0 ? timeIdx : header.findIndex(h =>
+        h.toLowerCase().includes('update_time') ||
+        h.toLowerCase().includes('start_time')
+      );
+      const timeColIdx = timeIdx >= 0 ? timeIdx : altTimeIdx;
+
+      if (weightIdx < 0) {
+        showToast('No weight column found in file', 'error');
+        return;
+      }
+      if (timeColIdx < 0) {
+        showToast('No date/time column found', 'error');
+        return;
+      }
+
+      // Check for time offset column
+      const offsetIdx = header.findIndex(h =>
+        h === 'com.samsung.health.weight.time_offset' ||
+        h === 'time_offset' ||
+        h.toLowerCase().includes('time_offset')
+      );
+
+      let imported = 0;
+      let skipped = 0;
+
+      for (let i = 1; i < lines.length; i++) {
+        // Handle CSV with possible quoted fields
+        const cols = parseCSVLine(lines[i]);
+        if (!cols || cols.length <= Math.max(weightIdx, timeColIdx)) continue;
+
+        const rawWeight = parseFloat(cols[weightIdx]);
+        const rawTime = cols[timeColIdx].trim().replace(/"/g, '');
+        if (isNaN(rawWeight) || rawWeight <= 0) { skipped++; continue; }
+
+        // Parse timestamp — Samsung uses Unix epoch in milliseconds
+        let date;
+        const msTimestamp = parseInt(rawTime);
+        if (!isNaN(msTimestamp) && msTimestamp > 1000000000000) {
+          // Unix ms timestamp
+          let offsetMs = 0;
+          if (offsetIdx >= 0 && cols[offsetIdx]) {
+            offsetMs = parseInt(cols[offsetIdx]) || 0;
+          }
+          date = new Date(msTimestamp + offsetMs);
+        } else if (rawTime.match(/\d{4}-\d{2}-\d{2}/)) {
+          // ISO date string
+          date = new Date(rawTime);
+        } else {
+          skipped++;
+          continue;
+        }
+
+        if (isNaN(date.getTime())) { skipped++; continue; }
+
+        const dateKey = date.getFullYear() + '-' +
+          String(date.getMonth() + 1).padStart(2, '0') + '-' +
+          String(date.getDate()).padStart(2, '0');
+
+        // Samsung Health always stores weight in kg
+        let weight = rawWeight;
+        if (state.unit === 'lbs') {
+          weight = rawWeight * 2.20462;
+        }
+        weight = Math.round(weight * 10) / 10;
+
+        // Only add if no entry exists for this date, or update with latest
+        const existing = state.entries.findIndex(e => e.date === dateKey);
+        if (existing >= 0) {
+          // Keep the later timestamp
+          if (date.getTime() > (state.entries[existing].ts || 0)) {
+            state.entries[existing].weight = weight;
+            state.entries[existing].ts = date.getTime();
+          }
+        } else {
+          state.entries.push({ date: dateKey, weight, ts: date.getTime() });
+        }
+        imported++;
+      }
+
+      state.entries.sort((a, b) => a.date.localeCompare(b.date));
+      save();
+      renderDashboard();
+
+      if (imported > 0) {
+        showToast(`Imported ${imported} entries from Samsung Health!`, 'success');
+      } else {
+        showToast(`No valid entries found (${skipped} skipped)`, 'error');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
+  // Simple CSV line parser that handles quoted fields
+  function parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) {
+        result.push(current);
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    result.push(current);
+    return result;
   }
 
   // ===== Helpers =====
