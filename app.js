@@ -19,6 +19,10 @@
     fasts: [],           // { start: ts, end: ts|null }
     fastingStreak: 0,
     onboarded: false,
+    petName: 'Buddy',
+    petHappiness: 80,
+    petEnergy: 80,
+    petLastFed: null,    // timestamp of last interaction
   };
 
   let state = loadState();
@@ -125,10 +129,15 @@
       return;
     }
 
+    const petName = ($('#onboard-pet-name').value || '').trim();
     state.name = name || 'Friend';
     state.unit = unit;
     state.goalWeight = goal;
     state.heightIn = ft * 12 + inches;
+    state.petName = petName || 'Buddy';
+    state.petHappiness = 80;
+    state.petEnergy = 80;
+    state.petLastFed = Date.now();
     state.onboarded = true;
 
     // Log first entry
@@ -158,12 +167,15 @@
       addEntry(weight);
     }
 
+    // Feed the pet
+    feedPet('log');
+
     // XP for logging
     addXP(10, 'Weight logged!');
 
     // Streak check
     const streak = calcStreak();
-    if (streak >= 3) addXP(5, `${streak}-day streak!`);
+    if (streak >= 3) { addXP(5, `${streak}-day streak!`); feedPet('streak'); }
     if (streak >= 7) addXP(10, '7-day streak bonus!');
 
     // Check for new lows
@@ -233,6 +245,7 @@
     ACHIEVEMENTS.forEach(a => {
       if (!state.achievements.includes(a.id) && a.check(state)) {
         state.achievements.push(a.id);
+        feedPet('achievement');
         addXP(50, '');
         setTimeout(() => showAchievement(a), 500);
       }
@@ -264,6 +277,7 @@
       const hours = (current.end - current.start) / 3600000;
       if (hours >= getRequiredFastHours()) {
         state.fastingStreak++;
+        feedPet('fast_complete');
         addXP(20, `Fast complete! ${hours.toFixed(1)}h`);
       } else {
         state.fastingStreak = 0;
@@ -336,6 +350,8 @@
   function renderDashboard() {
     renderGreeting();
     renderQuickStats();
+    renderPet();
+    startPetAnimation();
     renderStats();
     renderChart('7');
     renderFasting();
@@ -639,8 +655,8 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (tab === 'home') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else if (tab === 'fasting') {
-      $('.fasting-section').scrollIntoView({ behavior: 'smooth' });
+    } else if (tab === 'pet') {
+      $('.pet-section').scrollIntoView({ behavior: 'smooth' });
     } else if (tab === 'stats') {
       $('.stats-section').scrollIntoView({ behavior: 'smooth' });
     } else if (tab === 'trophies') {
@@ -651,6 +667,7 @@
   // ===== Settings =====
   function openSettings() {
     $('#settings-name').value = state.name;
+    $('#settings-pet-name').value = state.petName;
     $('#settings-goal').value = state.goalWeight;
     $('#settings-unit').value = state.unit;
     $('#settings-unit-label').textContent = state.unit;
@@ -667,6 +684,7 @@
 
   function saveSettings() {
     state.name = $('#settings-name').value.trim() || 'Friend';
+    state.petName = $('#settings-pet-name').value.trim() || 'Buddy';
     state.goalWeight = parseFloat($('#settings-goal').value) || state.goalWeight;
     state.unit = $('#settings-unit').value;
     const ft = parseInt($('#settings-height-ft').value) || 5;
@@ -821,6 +839,396 @@
     toast.classList.remove('hidden');
     clearTimeout(toast._timer);
     toast._timer = setTimeout(() => toast.classList.add('hidden'), 2500);
+  }
+
+  // ===== Pixel Pet System =====
+  // 5 evolution stages based on level: Egg, Baby, Kid, Teen, Champion
+  // Each stage is a pixel art sprite drawn on canvas
+
+  const PET_SPRITES = {
+    // Each sprite is a grid of hex colors (null = transparent)
+    // 16x16 pixel art, scaled up on canvas
+    egg: [
+      '................',
+      '......GGGG......',
+      '....GGWWWWGG....',
+      '...GWWWWWWWWG...',
+      '..GWWWWWWWWWWG..',
+      '..GWWPPWWPPWWG..',
+      '..GWWWWWWWWWWG..',
+      '..GWWWPPPPWWWG..',
+      '..GWWWWWWWWWWG..',
+      '...GWWWWWWWWG...',
+      '...GGWWWWWWGG...',
+      '....GGGGGGGG....',
+      '................',
+      '................',
+      '................',
+      '................',
+    ],
+    baby: [
+      '................',
+      '......CCCC......',
+      '....CCCCCCCC....',
+      '...CCCCCCCCCC...',
+      '..CCCCCCCCCCCC..',
+      '..CC.EE..EE.CC..',
+      '..CCCCCCCCCCCC..',
+      '..CCC.PPPP.CCC..',
+      '..CCCCCCCCCCCC..',
+      '...CCCCCCCCCC...',
+      '....CCCCCCCC....',
+      '....CC....CC....',
+      '...CCC....CCC...',
+      '................',
+      '................',
+      '................',
+    ],
+    kid: [
+      '....CCCCCCCC....',
+      '..CCCCCCCCCCCC..',
+      '..CCCCCCCCCCCC..',
+      '.CCC.EE..EE.CCC.',
+      '.CCCCCCCCCCCCCC.',
+      '.CCC..PPPP..CCC.',
+      '.CCCCCCCCCCCCCC.',
+      '..CCCCCCCCCCCC..',
+      '....FFFFFFFF....',
+      '...FFFFFFFFFF...',
+      '...FFFFFFFFFF...',
+      '...FF.FFFF.FF...',
+      '...FF.FFFF.FF...',
+      '..CC..FFFF..CC..',
+      '..CCC......CCC..',
+      '................',
+    ],
+    teen: [
+      '...AACCCCCCAA...',
+      '..AACCCCCCCCAA..',
+      '..CCCCCCCCCCCC..',
+      '.CCC.EE..EE.CCC.',
+      '.CCCCEEYYEECCCC.',
+      '.CCC..PPPP..CCC.',
+      '.CCCCCCCCCCCCCC.',
+      '..CCCCCCCCCCCC..',
+      '...FFFFFFFFFFF..',
+      '..FFFFFFFFFFFF..',
+      '..FFFFFFFFFFFF..',
+      '..FF..FFFF..FF..',
+      '..FF..FFFF..FF..',
+      '.CCC..FFFF..CCC.',
+      '.CCC........CCC.',
+      '................',
+    ],
+    champion: [
+      '....YY....YY....',
+      '...YYYYYYYYYY...',
+      '....YYYYYYYY....',
+      '..CCCCCCCCCCCC..',
+      '.CCCCCCCCCCCCCC.',
+      '.CCC.EE..EE.CCC.',
+      '.CCCCEEYYEECCCC.',
+      '.CCC.MPPPM.CCC.',
+      '.CCCCCCCCCCCCCC.',
+      '..CCCCCCCCCCCC..',
+      '..RRFFFFFFFFRR..',
+      '..RFFFFFFFFFFF..',
+      '..FF..FFFF..FF..',
+      '..FF..FFFF..FF..',
+      '.CCC..FFFF..CCC.',
+      '.CCC........CCC.',
+    ],
+  };
+
+  // Sad variants - droop features
+  const PET_SPRITES_SAD = {
+    egg: [
+      '................',
+      '......GGGG......',
+      '....GGGGGGGG....',
+      '...GGGGGGGGGG...',
+      '..GGGGGGGGGGGG..',
+      '..GG.EE..EE.GG..',
+      '..GGGGGGGGGGGG..',
+      '..GGGGGGGGGGGG..',
+      '..GGG.PPPP.GGG..',
+      '...GGGGGGGGGG...',
+      '...GGGGGGGGGG...',
+      '....GGGGGGGG....',
+      '................',
+      '................',
+      '................',
+      '................',
+    ],
+    baby: [
+      '................',
+      '......DDDDDD....',
+      '....DDDDDDDD....',
+      '...DDDDDDDDDD..',
+      '..DDDDDDDDDDDD.',
+      '..DD.EE..EE.DD..',
+      '..DDDDDDDDDDDD.',
+      '..DDDDDDDDDDDD.',
+      '..DDD.PPPP.DDD..',
+      '...DDDDDDDDDD..',
+      '....DDDDDDDD....',
+      '....DD....DD....',
+      '...DDD....DDD...',
+      '................',
+      '................',
+      '................',
+    ],
+  };
+
+  const SPRITE_COLORS = {
+    'C': '#5bc0eb', // body cyan
+    'E': '#1a1a2e', // eyes dark
+    'P': '#e94560', // mouth/cheeks
+    'G': '#9a9ab0', // egg grey
+    'W': '#eaeaea', // egg white
+    'F': '#7b2ff7', // clothes purple
+    'Y': '#ffd600', // crown/sparkle yellow
+    'A': '#00d2ff', // accessories accent
+    'R': '#e94560', // cape red
+    'M': '#eaeaea', // mouth smile white
+    'D': '#6a6a8a', // sad body
+    '.': null,       // transparent
+  };
+
+  let petAnimFrame = 0;
+  let petBounceY = 0;
+  let petAnimTimer = null;
+
+  function getPetStage() {
+    const lvl = state.level;
+    if (lvl >= 10) return 'champion';
+    if (lvl >= 7) return 'teen';
+    if (lvl >= 4) return 'kid';
+    if (lvl >= 2) return 'baby';
+    return 'egg';
+  }
+
+  function getPetStageNum() {
+    const s = getPetStage();
+    return { egg: 1, baby: 2, kid: 3, teen: 4, champion: 5 }[s];
+  }
+
+  function getPetMood() {
+    const h = state.petHappiness;
+    if (h >= 60) return 'happy';
+    if (h >= 30) return 'ok';
+    return 'sad';
+  }
+
+  function getPetMessage() {
+    const mood = getPetMood();
+    const stage = getPetStage();
+    const hoursSinceLog = getHoursSinceLastLog();
+    const fasting = currentFast() !== null;
+
+    if (hoursSinceLog > 48) return "I miss you... please log your weight!";
+    if (hoursSinceLog > 24) return "It's been a while... come say hi?";
+
+    if (mood === 'sad') {
+      const sadMsgs = [
+        "I'm feeling down... log your weight to cheer me up!",
+        "I need attention... track something for me?",
+        "Don't forget about me..."
+      ];
+      return sadMsgs[Math.floor(Math.random() * sadMsgs.length)];
+    }
+
+    if (fasting) {
+      const fastMsgs = [
+        "We're fasting together! Stay strong!",
+        "Almost there... I believe in you!",
+        "Fasting buddies forever!",
+      ];
+      return fastMsgs[Math.floor(Math.random() * fastMsgs.length)];
+    }
+
+    if (mood === 'ok') {
+      return "I could use some more attention...";
+    }
+
+    const happyMsgs = {
+      egg: ["I'm hatching soon! Keep logging!", "Warm and cozy in here~", "I can feel myself growing!"],
+      baby: ["Goo goo! You're doing great!", "I love when you check in!", "*happy wiggles*"],
+      kid: ["Let's crush our goals today!", "You're my favorite human!", "We make a great team!"],
+      teen: ["Looking strong! Keep it up!", "I'm so proud of your progress!", "We're unstoppable!"],
+      champion: ["WE'RE CHAMPIONS! Nothing can stop us!", "Look how far we've come!", "You're an inspiration!"],
+    };
+    const msgs = happyMsgs[stage];
+    return msgs[Math.floor(Math.random() * msgs.length)];
+  }
+
+  function getHoursSinceLastLog() {
+    if (state.entries.length === 0) return 999;
+    const lastEntry = state.entries[state.entries.length - 1];
+    return (Date.now() - lastEntry.ts) / 3600000;
+  }
+
+  function updatePetStats() {
+    // Decay happiness and energy over time
+    const hoursSinceLog = getHoursSinceLastLog();
+    const hoursSinceFed = state.petLastFed
+      ? (Date.now() - state.petLastFed) / 3600000
+      : 999;
+
+    // Slow decay: lose ~5 happiness per 12 hours of no interaction
+    const decayRate = Math.min(hoursSinceFed, 72) * (5 / 12);
+    state.petHappiness = Math.max(0, Math.min(100, state.petHappiness - decayRate * 0.01));
+
+    // Energy tied to fasting
+    if (currentFast()) {
+      state.petEnergy = Math.max(20, state.petEnergy - 0.01);
+    } else {
+      state.petEnergy = Math.min(100, state.petEnergy + 0.01);
+    }
+  }
+
+  function feedPet(action) {
+    // Called when user interacts (logs weight, completes fast, etc.)
+    state.petLastFed = Date.now();
+    switch (action) {
+      case 'log':
+        state.petHappiness = Math.min(100, state.petHappiness + 15);
+        state.petEnergy = Math.min(100, state.petEnergy + 10);
+        break;
+      case 'fast_complete':
+        state.petHappiness = Math.min(100, state.petHappiness + 20);
+        state.petEnergy = Math.min(100, state.petEnergy + 15);
+        break;
+      case 'achievement':
+        state.petHappiness = Math.min(100, state.petHappiness + 25);
+        break;
+      case 'streak':
+        state.petHappiness = Math.min(100, state.petHappiness + 10);
+        break;
+    }
+    save();
+  }
+
+  function drawPet() {
+    const canvas = $('#pet-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const mood = getPetMood();
+    const stage = getPetStage();
+
+    // Pick sprite - use sad variant if available and mood is sad
+    let sprite;
+    if (mood === 'sad' && PET_SPRITES_SAD[stage]) {
+      sprite = PET_SPRITES_SAD[stage];
+    } else {
+      sprite = PET_SPRITES[stage];
+    }
+
+    const size = 160;
+    const px = size / 16; // 10px per pixel
+    ctx.clearRect(0, 0, size, size);
+
+    // Bounce animation
+    petAnimFrame++;
+    const bounce = Math.sin(petAnimFrame * 0.08) * 3;
+    const breathe = Math.sin(petAnimFrame * 0.04) * 1;
+
+    // Draw pixel grid
+    for (let row = 0; row < 16; row++) {
+      for (let col = 0; col < sprite[row].length; col++) {
+        const ch = sprite[row][col];
+        const color = SPRITE_COLORS[ch];
+        if (!color) continue;
+
+        ctx.fillStyle = color;
+        const x = col * px;
+        const y = row * px + bounce;
+
+        // Slight scale for breathing
+        ctx.fillRect(x, y + breathe, px, px);
+      }
+    }
+
+    // Draw eyes blinking occasionally
+    if (petAnimFrame % 120 > 115 && mood !== 'sad') {
+      // Blink: draw skin color over eyes
+      const bodyColor = mood === 'sad' ? '#6a6a8a' : '#5bc0eb';
+      for (let row = 0; row < 16; row++) {
+        for (let col = 0; col < sprite[row].length; col++) {
+          if (sprite[row][col] === 'E') {
+            ctx.fillStyle = bodyColor;
+            ctx.fillRect(col * px, row * px + bounce + breathe, px, px);
+          }
+        }
+      }
+    }
+
+    // Draw mood particles
+    if (mood === 'happy' && petAnimFrame % 30 < 5) {
+      // Sparkles
+      ctx.fillStyle = '#ffd600';
+      const sparkX = 20 + Math.sin(petAnimFrame * 0.2) * 40;
+      const sparkY = 20 + Math.cos(petAnimFrame * 0.15) * 20;
+      ctx.fillRect(sparkX, sparkY + bounce, 3, 3);
+      ctx.fillRect(sparkX + 60, sparkY + 10 + bounce, 3, 3);
+    }
+
+    if (mood === 'sad') {
+      // Tear drops
+      if (petAnimFrame % 60 < 30) {
+        ctx.fillStyle = '#00d2ff';
+        const tearY = 70 + (petAnimFrame % 60) * 1.5;
+        ctx.fillRect(45, tearY + bounce, 3, 4);
+      }
+    }
+
+    // Z's for sleeping (low energy)
+    if (state.petEnergy < 30) {
+      ctx.fillStyle = var_text2Color();
+      ctx.font = `bold ${10 + Math.sin(petAnimFrame * 0.05) * 2}px monospace`;
+      ctx.fillText('z', 125 + Math.sin(petAnimFrame * 0.03) * 5, 40 + bounce);
+      ctx.font = `bold ${8}px monospace`;
+      ctx.fillText('z', 135, 30 + bounce);
+    }
+  }
+
+  function var_text2Color() { return '#9a9ab0'; }
+
+  function renderPet() {
+    updatePetStats();
+
+    const mood = getPetMood();
+    const moodLabel = $('#pet-mood-label');
+    moodLabel.textContent = mood === 'happy' ? 'Happy' : mood === 'ok' ? 'Meh' : 'Sad';
+    moodLabel.className = `pet-mood ${mood === 'happy' ? '' : mood}`;
+
+    $('#pet-name').textContent = state.petName;
+    $('#pet-message').textContent = getPetMessage();
+    $('#pet-evolution').textContent = `Stage ${getPetStageNum()} / 5 — ${getPetStage().charAt(0).toUpperCase() + getPetStage().slice(1)}`;
+
+    // Bars
+    const hBar = $('#pet-happiness-bar');
+    const eBar = $('#pet-energy-bar');
+    hBar.style.width = `${state.petHappiness}%`;
+    eBar.style.width = `${state.petEnergy}%`;
+    hBar.className = `pet-bar-fill happiness-fill${state.petHappiness < 30 ? ' low' : state.petHappiness < 60 ? ' mid' : ''}`;
+    eBar.className = `pet-bar-fill energy-fill${state.petEnergy < 30 ? ' low' : state.petEnergy < 60 ? ' mid' : ''}`;
+
+    drawPet();
+  }
+
+  function startPetAnimation() {
+    if (petAnimTimer) return;
+    petAnimTimer = setInterval(() => {
+      drawPet();
+    }, 1000 / 15); // 15fps for that retro feel
+  }
+
+  function stopPetAnimation() {
+    if (petAnimTimer) {
+      clearInterval(petAnimTimer);
+      petAnimTimer = null;
+    }
   }
 
   // ===== Resize handler for chart =====

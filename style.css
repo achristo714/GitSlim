@@ -262,6 +262,99 @@ input:focus, select:focus { border-color: var(--primary); }
 .quick-stat-value.positive { color: var(--green); }
 .quick-stat-value.negative { color: var(--primary); }
 
+/* ========== Pixel Pet ========== */
+.pet-section { padding: 16px 20px 0; }
+.pet-card {
+  background: linear-gradient(135deg, #1a1a2e, #0f2027);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.pet-card::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 40px;
+  background: linear-gradient(transparent, rgba(0, 210, 255, 0.05));
+  pointer-events: none;
+}
+.pet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.pet-name { font-weight: 700; font-size: 0.95rem; }
+.pet-mood {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(0, 200, 83, 0.15);
+  color: var(--green);
+}
+.pet-mood.sad { background: rgba(233, 69, 96, 0.15); color: var(--primary); }
+.pet-mood.ok { background: rgba(255, 214, 0, 0.15); color: var(--yellow); }
+
+.pet-stage {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0;
+  image-rendering: pixelated;
+}
+#pet-canvas { image-rendering: pixelated; }
+
+.pet-status-bars {
+  display: flex;
+  gap: 12px;
+  margin: 12px 0 8px;
+}
+.pet-bar { flex: 1; }
+.pet-bar-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 4px;
+  text-align: left;
+}
+.pet-bar-track {
+  height: 8px;
+  background: var(--bg3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.pet-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease, background 0.3s;
+}
+.happiness-fill { background: var(--green); }
+.happiness-fill.low { background: var(--primary); }
+.happiness-fill.mid { background: var(--yellow); }
+.energy-fill { background: var(--accent); }
+.energy-fill.low { background: var(--primary); }
+.energy-fill.mid { background: var(--yellow); }
+
+.pet-message {
+  font-size: 0.8rem;
+  color: var(--text2);
+  margin-top: 4px;
+  font-style: italic;
+  min-height: 1.2em;
+}
+.pet-evolution {
+  font-size: 0.7rem;
+  color: var(--text3);
+  margin-top: 6px;
+  font-weight: 600;
+}
+
 /* ========== Fasting ========== */
 .fasting-section { padding: 16px 20px 0; }
 .fasting-card {

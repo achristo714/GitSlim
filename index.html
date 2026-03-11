@@ -42,6 +42,8 @@
             <input type="number" id="onboard-height-in" placeholder="10" min="0" max="11" inputmode="numeric">
             <span class="unit-label">in</span>
           </div>
+          <label>Name your pixel pet</label>
+          <input type="text" id="onboard-pet-name" placeholder="Buddy" autocomplete="off">
           <button id="onboard-start" class="btn-primary">Start My Journey</button>
         </div>
       </div>
@@ -74,6 +76,35 @@
           </div>
           <button id="log-weight-btn" class="btn-primary btn-log">Log Weight</button>
           <div class="quick-stats" id="quick-stats"></div>
+        </div>
+      </section>
+
+      <!-- Pixel Pet -->
+      <section class="pet-section">
+        <div class="pet-card">
+          <div class="pet-header">
+            <span class="pet-name" id="pet-name">Buddy</span>
+            <span class="pet-mood" id="pet-mood-label">Happy</span>
+          </div>
+          <div class="pet-stage">
+            <canvas id="pet-canvas" width="160" height="160"></canvas>
+          </div>
+          <div class="pet-status-bars">
+            <div class="pet-bar">
+              <span class="pet-bar-label">Happiness</span>
+              <div class="pet-bar-track">
+                <div class="pet-bar-fill happiness-fill" id="pet-happiness-bar"></div>
+              </div>
+            </div>
+            <div class="pet-bar">
+              <span class="pet-bar-label">Energy</span>
+              <div class="pet-bar-track">
+                <div class="pet-bar-fill energy-fill" id="pet-energy-bar"></div>
+              </div>
+            </div>
+          </div>
+          <div class="pet-message" id="pet-message">Log your weight to keep me happy!</div>
+          <div class="pet-evolution" id="pet-evolution">Stage 1 / 5</div>
         </div>
       </section>
 
@@ -167,9 +198,9 @@
           <span class="nav-icon">&#127968;</span>
           <span class="nav-label">Home</span>
         </button>
-        <button class="nav-btn" data-tab="fasting" title="Fasting">
-          <span class="nav-icon">&#9201;</span>
-          <span class="nav-label">Fasting</span>
+        <button class="nav-btn" data-tab="pet" title="Pet">
+          <span class="nav-icon">&#128054;</span>
+          <span class="nav-label">Pet</span>
         </button>
         <button class="nav-btn log-btn-nav" data-tab="log" title="Log">
           <span class="nav-icon">&#10133;</span>
@@ -195,6 +226,8 @@
         <div class="modal-body">
           <label>Name</label>
           <input type="text" id="settings-name">
+          <label>Pet Name</label>
+          <input type="text" id="settings-pet-name">
           <label>Goal Weight</label>
           <div class="input-row">
             <input type="number" id="settings-goal" step="0.1" inputmode="decimal">
