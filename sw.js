@@ -1,12 +1,12 @@
-const CACHE_NAME = 'gitslim-v1';
+const CACHE_NAME = 'gitslim-v2';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/app.js',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png'
+  './',
+  './index.html',
+  './style.css',
+  './app.js',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 // Install - cache all assets
@@ -41,7 +41,7 @@ self.addEventListener('fetch', (event) => {
     }).catch(() => {
       // Offline fallback
       if (event.request.destination === 'document') {
-        return caches.match('/index.html');
+        return caches.match('./index.html');
       }
     })
   );
