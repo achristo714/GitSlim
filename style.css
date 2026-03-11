@@ -451,6 +451,127 @@ input:focus, select:focus {
   margin-top: 4px;
 }
 
+/* ========== Rings Badge ========== */
+.rings-badge {
+  font-family: var(--pixel);
+  font-size: 0.4rem;
+  padding: 3px 8px;
+  background: var(--card);
+  border: var(--border-thin);
+  color: var(--text);
+  box-shadow: 2px 2px 0 rgba(42, 32, 16, 0.25);
+}
+
+/* ========== Chao Shop ========== */
+.chao-shop-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.shop-btn {
+  font-size: 0.45rem !important;
+  padding: 5px 16px !important;
+}
+.equipped-list {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.equipped-tag {
+  font-family: var(--pixel);
+  font-size: 0.35rem;
+  padding: 2px 6px;
+  background: var(--bg);
+  border: var(--border-thin);
+  color: var(--text2);
+  cursor: pointer;
+}
+.equipped-tag:hover { color: var(--text3); }
+.equipped-tag::after { content: ' x'; color: var(--text3); }
+
+.shop-modal-content { max-height: 80vh; overflow-y: auto; }
+.shop-rings {
+  font-family: var(--pixel);
+  font-size: 0.5rem;
+  color: var(--text);
+  margin-left: auto;
+  margin-right: 12px;
+}
+.shop-categories {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.shop-cat-btn {
+  font-family: var(--pixel);
+  font-size: 0.4rem;
+  padding: 4px 10px;
+  background: var(--bg);
+  border: var(--border-thin);
+  color: var(--text2);
+  cursor: pointer;
+  box-shadow: 2px 2px 0 rgba(42, 32, 16, 0.25);
+}
+.shop-cat-btn.active {
+  background: var(--bg3);
+  color: var(--text);
+  border-color: var(--text);
+}
+.shop-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.shop-item {
+  background: var(--bg);
+  border: var(--border-thin);
+  padding: 10px 8px;
+  text-align: center;
+  box-shadow: 2px 2px 0 rgba(42, 32, 16, 0.25);
+}
+.shop-item.owned { border-color: var(--green); }
+.shop-item.equipped { background: var(--bg3); border-color: var(--text); }
+.shop-item-name {
+  font-family: var(--pixel);
+  font-size: 0.45rem;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.shop-item-desc {
+  font-family: var(--pixel);
+  font-size: 0.35rem;
+  color: var(--text2);
+  margin-bottom: 6px;
+}
+.shop-item-price {
+  font-family: var(--pixel);
+  font-size: 0.4rem;
+  color: var(--text2);
+  margin-bottom: 6px;
+}
+.shop-item-btn {
+  font-family: var(--pixel);
+  font-size: 0.38rem;
+  padding: 4px 12px;
+  background: var(--card);
+  border: var(--border-thin);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: 2px 2px 0 rgba(42, 32, 16, 0.25);
+}
+.shop-item-btn:disabled {
+  color: var(--text3);
+  cursor: default;
+  opacity: 0.6;
+}
+.shop-item-btn.equip-btn { border-color: var(--green); }
+.shop-item-btn.unequip-btn { border-color: var(--text3); }
+
 /* ========== Fasting ========== */
 .fasting-section { padding: 12px 16px 0; }
 .fasting-card {

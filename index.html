@@ -60,6 +60,7 @@
           <span class="logo">&#9889; GitSlim</span>
         </div>
         <div class="header-right">
+          <span id="rings-badge" class="rings-badge" title="Rings">0 rings</span>
           <span id="streak-badge" class="streak-badge" title="Logging streak">0 &#128293;</span>
           <span id="level-badge" class="level-badge" title="Your level">Lv 1</span>
           <button id="settings-btn" class="icon-btn" title="Settings">&#9881;</button>
@@ -114,8 +115,30 @@
           <div class="pet-message" id="pet-message">Log your weight to keep me happy!</div>
           <div class="pet-evolution" id="pet-evolution">Egg &bull; Stage 1/5</div>
           <div class="chao-unlock-hint" id="chao-unlock-hint"></div>
+          <div class="chao-shop-area">
+            <button id="shop-btn" class="btn-secondary shop-btn">Shop</button>
+            <div class="equipped-list" id="equipped-list"></div>
+          </div>
         </div>
       </section>
+
+      <!-- Chao Shop Modal -->
+      <div id="shop-modal" class="modal hidden">
+        <div class="modal-content shop-modal-content">
+          <div class="modal-header">
+            <h2>Chao Shop</h2>
+            <span class="shop-rings" id="shop-rings">0 rings</span>
+            <button id="shop-close" class="icon-btn">&times;</button>
+          </div>
+          <div class="shop-categories">
+            <button class="shop-cat-btn active" data-cat="all">All</button>
+            <button class="shop-cat-btn" data-cat="hat">Hats</button>
+            <button class="shop-cat-btn" data-cat="face">Face</button>
+            <button class="shop-cat-btn" data-cat="neck">Neck</button>
+          </div>
+          <div class="shop-grid" id="shop-grid"></div>
+        </div>
+      </div>
 
       <!-- Fasting Timer -->
       <section class="fasting-section">

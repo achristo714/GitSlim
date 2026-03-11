@@ -22,6 +22,8 @@
     chao: [],            // array of chao objects
     activeChao: 0,       // index of selected chao
     petLastFed: null,    // timestamp of last interaction
+    rings: 0,            // spendable currency (earned alongside XP)
+    inventory: [],       // purchased accessory IDs
   };
 
   let state = loadState();
@@ -96,6 +98,17 @@
 
     // Reset
     $('#reset-btn').addEventListener('click', handleReset);
+
+    // Shop
+    $('#shop-btn').addEventListener('click', openShop);
+    $('#shop-close').addEventListener('click', () => $('#shop-modal').classList.add('hidden'));
+    $$('.shop-cat-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        $$('.shop-cat-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderShopGrid(btn.dataset.cat);
+      });
+    });
 
     // Pet the Chao (tap canvas)
     $('#pet-canvas').addEventListener('click', handlePetChao);
@@ -237,6 +250,9 @@
   // ===== XP & Leveling =====
   function addXP(amount, reason) {
     state.xp += amount;
+    // Award rings alongside XP
+    const ringAmount = Math.max(1, Math.round(amount / 2));
+    state.rings = (state.rings || 0) + ringAmount;
     const newLevel = Math.floor(state.xp / 100) + 1;
     if (newLevel > state.level) {
       state.level = newLevel;
@@ -244,9 +260,29 @@
     }
     save();
     if (reason) {
-      showToast(`+${amount} XP - ${reason}`, 'xp');
+      showToast(`+${amount} XP, +${ringAmount} rings - ${reason}`, 'xp');
     }
   }
+
+  // ===== Accessories =====
+  const ACCESSORIES = [
+    // Hats
+    { id: 'bow', name: 'Bow', category: 'hat', price: 30, desc: 'A cute little bow' },
+    { id: 'party_hat', name: 'Party Hat', category: 'hat', price: 50, desc: 'Time to celebrate!' },
+    { id: 'crown', name: 'Crown', category: 'hat', price: 150, desc: 'Royalty vibes' },
+    { id: 'top_hat', name: 'Top Hat', category: 'hat', price: 100, desc: 'Fancy and dapper' },
+    { id: 'halo', name: 'Halo', category: 'hat', price: 200, desc: 'An angelic ring' },
+    // Face
+    { id: 'sunglasses', name: 'Sunglasses', category: 'face', price: 60, desc: 'Too cool for school' },
+    { id: 'round_glasses', name: 'Glasses', category: 'face', price: 40, desc: 'Scholarly look' },
+    // Neck
+    { id: 'bowtie', name: 'Bowtie', category: 'neck', price: 45, desc: 'Dashing!' },
+    { id: 'scarf', name: 'Scarf', category: 'neck', price: 70, desc: 'Cozy and warm' },
+    { id: 'cape', name: 'Cape', category: 'neck', price: 120, desc: 'Superhero mode' },
+    // Special
+    { id: 'devil_horns', name: 'Devil Horns', category: 'hat', price: 175, desc: 'A little mischievous' },
+    { id: 'flower', name: 'Flower', category: 'hat', price: 35, desc: 'A daisy on top' },
+  ];
 
   // ===== Achievements =====
   const ACHIEVEMENTS = [
@@ -400,6 +436,7 @@
     const streak = calcStreak();
     $('#streak-badge').innerHTML = `${streak} \u{1F525}`;
     $('#level-badge').textContent = `Lv ${state.level}`;
+    $('#rings-badge').textContent = `${state.rings || 0} rings`;
   }
 
   function renderQuickStats() {
@@ -676,6 +713,123 @@
         <div class="chart-summary-label">High</div>
       </div>
     `;
+  }
+
+  // ===== Chao Shop =====
+  function openShop() {
+    $('#shop-modal').classList.remove('hidden');
+    $('#shop-rings').textContent = `${state.rings || 0} rings`;
+    $$('.shop-cat-btn').forEach(b => b.classList.remove('active'));
+    $$('.shop-cat-btn')[0].classList.add('active');
+    renderShopGrid('all');
+  }
+
+  function renderShopGrid(category) {
+    const grid = $('#shop-grid');
+    const chao = getActiveChao();
+    const equipped = chao && chao.accessories ? chao.accessories : [];
+    const inv = state.inventory || [];
+
+    const items = category === 'all' ? ACCESSORIES : ACCESSORIES.filter(a => a.category === category);
+
+    grid.innerHTML = items.map(item => {
+      const owned = inv.includes(item.id);
+      const isEquipped = equipped.includes(item.id);
+      const canAfford = (state.rings || 0) >= item.price;
+      let btnText, btnClass, btnDisabled;
+      if (isEquipped) {
+        btnText = 'Unequip';
+        btnClass = 'unequip-btn';
+        btnDisabled = false;
+      } else if (owned) {
+        btnText = 'Equip';
+        btnClass = 'equip-btn';
+        btnDisabled = false;
+      } else {
+        btnText = `${item.price} rings`;
+        btnClass = '';
+        btnDisabled = !canAfford;
+      }
+      return `<div class="shop-item${owned ? ' owned' : ''}${isEquipped ? ' equipped' : ''}">
+        <div class="shop-item-name">${item.name}</div>
+        <div class="shop-item-desc">${item.desc}</div>
+        ${!owned ? `<div class="shop-item-price">${item.price} rings</div>` : ''}
+        <button class="shop-item-btn ${btnClass}" data-id="${item.id}" ${btnDisabled ? 'disabled' : ''}>${btnText}</button>
+      </div>`;
+    }).join('');
+
+    grid.querySelectorAll('.shop-item-btn').forEach(btn => {
+      btn.addEventListener('click', () => handleShopAction(btn.dataset.id));
+    });
+  }
+
+  function handleShopAction(itemId) {
+    const item = ACCESSORIES.find(a => a.id === itemId);
+    if (!item) return;
+    const inv = state.inventory || [];
+    const chao = getActiveChao();
+    if (!chao) return;
+    if (!chao.accessories) chao.accessories = [];
+
+    if (chao.accessories.includes(itemId)) {
+      // Unequip
+      chao.accessories = chao.accessories.filter(id => id !== itemId);
+      save();
+      showToast(`Unequipped ${item.name}`, 'success');
+    } else if (inv.includes(itemId)) {
+      // Equip — only one per category
+      const sameCategory = ACCESSORIES.filter(a => a.category === item.category).map(a => a.id);
+      chao.accessories = chao.accessories.filter(id => !sameCategory.includes(id));
+      chao.accessories.push(itemId);
+      save();
+      showToast(`Equipped ${item.name}!`, 'success');
+    } else {
+      // Buy
+      if ((state.rings || 0) < item.price) {
+        showToast('Not enough rings!', 'error');
+        return;
+      }
+      state.rings -= item.price;
+      if (!state.inventory) state.inventory = [];
+      state.inventory.push(itemId);
+      // Auto-equip if no item in that category
+      const sameCategory = ACCESSORIES.filter(a => a.category === item.category).map(a => a.id);
+      if (!chao.accessories.some(id => sameCategory.includes(id))) {
+        chao.accessories.push(itemId);
+      }
+      save();
+      showToast(`Bought ${item.name}!`, 'success');
+    }
+
+    $('#shop-rings').textContent = `${state.rings || 0} rings`;
+    const activeCat = document.querySelector('.shop-cat-btn.active');
+    renderShopGrid(activeCat ? activeCat.dataset.cat : 'all');
+    renderEquippedList();
+    renderPet();
+  }
+
+  function renderEquippedList() {
+    const chao = getActiveChao();
+    const el = $('#equipped-list');
+    if (!chao || !chao.accessories || chao.accessories.length === 0) {
+      el.innerHTML = '';
+      return;
+    }
+    el.innerHTML = chao.accessories.map(id => {
+      const item = ACCESSORIES.find(a => a.id === id);
+      return item ? `<span class="equipped-tag" data-id="${id}" title="Click to unequip">${item.name}</span>` : '';
+    }).join('');
+    el.querySelectorAll('.equipped-tag').forEach(tag => {
+      tag.addEventListener('click', () => {
+        const curchao = getActiveChao();
+        if (curchao && curchao.accessories) {
+          curchao.accessories = curchao.accessories.filter(id => id !== tag.dataset.id);
+          save();
+          renderEquippedList();
+          renderPet();
+        }
+      });
+    });
   }
 
   // ===== Nav =====
@@ -1259,6 +1413,18 @@
     const bw = (stage >= 3) ? 14 : (stage >= 2) ? 12 : 10;
     const bh = (stage >= 3) ? 20 : (stage >= 2) ? 18 : 14;
 
+    // Cape draws behind body
+    if (chao.accessories && chao.accessories.includes('cape')) {
+      ctx.fillStyle = '#8e44ad';
+      const capeTop = cy - 2 * s;
+      ctx.fillRect(x - bw * s - 3 * s, capeTop, bw * 2 * s + 6 * s, 2 * s);
+      ctx.fillRect(x - bw * s - 4 * s, capeTop + 2 * s, bw * 2 * s + 8 * s, bh * 0.6 * s);
+      const capeFlutter = Math.round(Math.sin(frame * 0.08) * 2) * s;
+      ctx.fillRect(x - bw * s - 5 * s, capeTop + 2 * s + bh * 0.6 * s, bw * 2 * s + 10 * s + capeFlutter, 3 * s);
+      ctx.fillStyle = '#e74c3c';
+      ctx.fillRect(x - bw * s - 2 * s, capeTop + 3 * s, bw * 2 * s + 4 * s, bh * 0.3 * s);
+    }
+
     // Body shape (pixel oval via stacked rects)
     ctx.fillStyle = colors.body;
     ctx.fillRect(x - bw * 0.4 * s, cy - bh * 0.5 * s, bw * 0.8 * s, 2 * s);         // top
@@ -1369,6 +1535,11 @@
       ctx.fillRect(x + bw * s - 2 * s, cy + 6 * s, 3 * s, 3 * s);
     }
 
+    // ACCESSORIES
+    if (chao.accessories && chao.accessories.length > 0) {
+      drawChaoAccessories(ctx, chao, x, cy, s, bw, bh, frame);
+    }
+
     // Chaos aura (stage 4) - flickering pixel border
     if (stage >= 4) {
       ctx.fillStyle = colors.bobble;
@@ -1407,6 +1578,155 @@
       ctx.font = `${Math.round(6 * s)}px "Press Start 2P", monospace`;
       ctx.fillText('z', x + 20 * s, cy - 26 * s + bounce);
     }
+  }
+
+  function drawChaoAccessories(ctx, chao, x, cy, s, bw, bh, frame) {
+    const topY = cy - bh * 0.5 * s; // top of body
+    const eyeY = cy - 4 * s;
+
+    chao.accessories.forEach(id => {
+      switch (id) {
+        case 'bow': {
+          // Cute bow on top of head
+          ctx.fillStyle = '#e74c3c';
+          ctx.fillRect(x - 6 * s, topY - 4 * s, 4 * s, 3 * s); // left loop
+          ctx.fillRect(x + 2 * s, topY - 4 * s, 4 * s, 3 * s); // right loop
+          ctx.fillStyle = '#c0392b';
+          ctx.fillRect(x - 1 * s, topY - 3 * s, 2 * s, 2 * s); // center knot
+          break;
+        }
+        case 'party_hat': {
+          ctx.fillStyle = '#9b59b6';
+          ctx.fillRect(x - 6 * s, topY - 2 * s, 12 * s, 3 * s); // base
+          ctx.fillRect(x - 4 * s, topY - 5 * s, 8 * s, 3 * s);  // mid
+          ctx.fillRect(x - 2 * s, topY - 8 * s, 4 * s, 3 * s);  // top
+          // Pom pom
+          ctx.fillStyle = '#ffd600';
+          ctx.fillRect(x - 2 * s, topY - 10 * s, 4 * s, 2 * s);
+          // Stripe
+          ctx.fillStyle = '#f39c12';
+          ctx.fillRect(x - 5 * s, topY - 3 * s, 10 * s, 1 * s);
+          break;
+        }
+        case 'crown': {
+          ctx.fillStyle = '#ffd600';
+          ctx.fillRect(x - 7 * s, topY - 2 * s, 14 * s, 3 * s); // base
+          // Points
+          ctx.fillRect(x - 7 * s, topY - 5 * s, 3 * s, 3 * s);
+          ctx.fillRect(x - 1 * s, topY - 6 * s, 2 * s, 4 * s);
+          ctx.fillRect(x + 4 * s, topY - 5 * s, 3 * s, 3 * s);
+          // Jewel
+          ctx.fillStyle = '#e74c3c';
+          ctx.fillRect(x - 1 * s, topY - 1 * s, 2 * s, 2 * s);
+          break;
+        }
+        case 'top_hat': {
+          ctx.fillStyle = '#2a2010';
+          ctx.fillRect(x - 8 * s, topY - 2 * s, 16 * s, 2 * s); // brim
+          ctx.fillRect(x - 5 * s, topY - 10 * s, 10 * s, 8 * s); // cylinder
+          // Band
+          ctx.fillStyle = '#8b7e5a';
+          ctx.fillRect(x - 5 * s, topY - 4 * s, 10 * s, 2 * s);
+          break;
+        }
+        case 'halo': {
+          const haloAlpha = 0.6 + Math.sin(frame * 0.1) * 0.2;
+          ctx.fillStyle = `rgba(255, 214, 0, ${haloAlpha})`;
+          ctx.fillRect(x - 8 * s, topY - 8 * s, 16 * s, 2 * s); // top
+          ctx.fillRect(x - 10 * s, topY - 6 * s, 4 * s, 2 * s); // left
+          ctx.fillRect(x + 6 * s, topY - 6 * s, 4 * s, 2 * s);  // right
+          ctx.fillRect(x - 8 * s, topY - 4 * s, 16 * s, 2 * s); // bottom (ring)
+          // Make it a ring shape with hollow center (just skip middle pixels)
+          break;
+        }
+        case 'devil_horns': {
+          ctx.fillStyle = '#c0392b';
+          // Left horn
+          ctx.fillRect(x - 8 * s, topY - 2 * s, 3 * s, 2 * s);
+          ctx.fillRect(x - 9 * s, topY - 5 * s, 3 * s, 3 * s);
+          ctx.fillRect(x - 8 * s, topY - 7 * s, 2 * s, 2 * s);
+          // Right horn
+          ctx.fillRect(x + 5 * s, topY - 2 * s, 3 * s, 2 * s);
+          ctx.fillRect(x + 6 * s, topY - 5 * s, 3 * s, 3 * s);
+          ctx.fillRect(x + 6 * s, topY - 7 * s, 2 * s, 2 * s);
+          break;
+        }
+        case 'flower': {
+          // Petals
+          ctx.fillStyle = '#ff69b4';
+          ctx.fillRect(x - 1 * s, topY - 7 * s, 2 * s, 2 * s); // top
+          ctx.fillRect(x - 4 * s, topY - 5 * s, 2 * s, 2 * s); // left
+          ctx.fillRect(x + 2 * s, topY - 5 * s, 2 * s, 2 * s); // right
+          ctx.fillRect(x - 1 * s, topY - 3 * s, 2 * s, 2 * s); // bottom
+          // Center
+          ctx.fillStyle = '#ffd600';
+          ctx.fillRect(x - 1 * s, topY - 5 * s, 2 * s, 2 * s);
+          break;
+        }
+        case 'sunglasses': {
+          ctx.fillStyle = '#2a2010';
+          // Left lens
+          ctx.fillRect(x - 8 * s, eyeY - 2 * s, 6 * s, 4 * s);
+          // Right lens
+          ctx.fillRect(x + 2 * s, eyeY - 2 * s, 6 * s, 4 * s);
+          // Bridge
+          ctx.fillRect(x - 2 * s, eyeY - 1 * s, 4 * s, 1 * s);
+          // Tinted glass
+          ctx.fillStyle = 'rgba(42, 32, 16, 0.5)';
+          ctx.fillRect(x - 7 * s, eyeY - 1 * s, 4 * s, 2 * s);
+          ctx.fillRect(x + 3 * s, eyeY - 1 * s, 4 * s, 2 * s);
+          break;
+        }
+        case 'round_glasses': {
+          ctx.fillStyle = '#5c4a28';
+          // Left frame
+          ctx.fillRect(x - 8 * s, eyeY - 3 * s, 6 * s, 1 * s); // top
+          ctx.fillRect(x - 8 * s, eyeY + 2 * s, 6 * s, 1 * s); // bottom
+          ctx.fillRect(x - 8 * s, eyeY - 3 * s, 1 * s, 6 * s); // left
+          ctx.fillRect(x - 3 * s, eyeY - 3 * s, 1 * s, 6 * s); // right
+          // Right frame
+          ctx.fillRect(x + 2 * s, eyeY - 3 * s, 6 * s, 1 * s);
+          ctx.fillRect(x + 2 * s, eyeY + 2 * s, 6 * s, 1 * s);
+          ctx.fillRect(x + 2 * s, eyeY - 3 * s, 1 * s, 6 * s);
+          ctx.fillRect(x + 7 * s, eyeY - 3 * s, 1 * s, 6 * s);
+          // Bridge
+          ctx.fillRect(x - 2 * s, eyeY - 1 * s, 4 * s, 1 * s);
+          break;
+        }
+        case 'bowtie': {
+          const neckY = cy + bh * 0.3 * s;
+          ctx.fillStyle = '#e74c3c';
+          // Left triangle
+          ctx.fillRect(x - 6 * s, neckY, 4 * s, 1 * s);
+          ctx.fillRect(x - 5 * s, neckY + 1 * s, 3 * s, 1 * s);
+          ctx.fillRect(x - 4 * s, neckY + 2 * s, 2 * s, 1 * s);
+          // Right triangle
+          ctx.fillRect(x + 2 * s, neckY, 4 * s, 1 * s);
+          ctx.fillRect(x + 2 * s, neckY + 1 * s, 3 * s, 1 * s);
+          ctx.fillRect(x + 2 * s, neckY + 2 * s, 2 * s, 1 * s);
+          // Center knot
+          ctx.fillStyle = '#c0392b';
+          ctx.fillRect(x - 1 * s, neckY, 2 * s, 3 * s);
+          break;
+        }
+        case 'scarf': {
+          const neckY = cy + bh * 0.25 * s;
+          ctx.fillStyle = '#3498db';
+          // Wrap around neck
+          ctx.fillRect(x - bw * s, neckY, bw * 2 * s, 3 * s);
+          // Hanging end
+          ctx.fillRect(x + 4 * s, neckY + 3 * s, 4 * s, 6 * s);
+          ctx.fillRect(x + 3 * s, neckY + 9 * s, 4 * s, 2 * s);
+          // Stripe
+          ctx.fillStyle = '#2980b9';
+          ctx.fillRect(x - bw * s, neckY + 1 * s, bw * 2 * s, 1 * s);
+          break;
+        }
+        case 'cape':
+          // Drawn behind body in drawChao
+          break;
+      }
+    });
   }
 
   // ===== Tap to pet =====
@@ -1623,6 +1943,7 @@
     eBar.className = `pet-bar-fill energy-fill${chao.energy < 30 ? ' low' : chao.energy < 60 ? ' mid' : ''}`;
 
     renderChaoSelector();
+    renderEquippedList();
     drawGarden();
   }
 
