@@ -551,7 +551,7 @@
     }
 
     if (entries.length < 2) {
-      ctx.fillStyle = '#707070';
+      ctx.fillStyle = '#8b7e5a';
       ctx.font = '10px "Press Start 2P", monospace';
       ctx.textAlign = 'center';
       ctx.fillText('Need 2+ entries', rect.width / 2, rect.height / 2);
@@ -570,7 +570,7 @@
     const chartH = h - padY * 2;
 
     // Grid lines (dashed pixel style)
-    ctx.fillStyle = '#3a3a3a';
+    ctx.fillStyle = '#a09070';
     const gridLines = 5;
     for (let i = 0; i <= gridLines; i++) {
       const y = Math.round(padY + (chartH / gridLines) * i);
@@ -579,17 +579,17 @@
         ctx.fillRect(gx, y, 4, 1);
       }
       const val = maxW - (maxW - minW) * (i / gridLines);
-      ctx.fillStyle = '#707070';
+      ctx.fillStyle = '#8b7e5a';
       ctx.font = '8px "Press Start 2P", monospace';
       ctx.textAlign = 'right';
       ctx.fillText(val.toFixed(0), padX - 6, y + 3);
-      ctx.fillStyle = '#3a3a3a';
+      ctx.fillStyle = '#a09070';
     }
 
     // Goal line (pixel dashed)
     if (state.goalWeight >= minW && state.goalWeight <= maxW) {
       const goalY = Math.round(padY + chartH * (1 - (state.goalWeight - minW) / (maxW - minW)));
-      ctx.fillStyle = '#707070';
+      ctx.fillStyle = '#8b7e5a';
       for (let gx = padX; gx < w - 16; gx += 10) {
         ctx.fillRect(gx, goalY, 6, 2);
       }
@@ -599,7 +599,7 @@
     }
 
     // Area fill (pixel scanline pattern)
-    ctx.fillStyle = 'rgba(232, 232, 232, 0.04)';
+    ctx.fillStyle = 'rgba(42, 32, 16, 0.06)';
     entries.forEach((entry, i) => {
       if (i >= entries.length - 1) return;
       const x1 = Math.round(padX + (i / (entries.length - 1)) * chartW);
@@ -615,7 +615,7 @@
     });
 
     // Weight line (stepped pixel line)
-    ctx.fillStyle = '#e8e8e8';
+    ctx.fillStyle = '#2a2010';
     entries.forEach((entry, i) => {
       if (i >= entries.length - 1) return;
       const x1 = Math.round(padX + (i / (entries.length - 1)) * chartW);
@@ -644,10 +644,10 @@
       const x = Math.round(padX + (i / (entries.length - 1)) * chartW);
       const y = Math.round(padY + chartH * (1 - (entry.weight - minW) / (maxW - minW)));
       // Outer square
-      ctx.fillStyle = '#1a1a1a';
+      ctx.fillStyle = '#2a2010';
       ctx.fillRect(x - 4, y - 4, 9, 9);
       // Inner square
-      ctx.fillStyle = '#e8e8e8';
+      ctx.fillStyle = '#2a2010';
       ctx.fillRect(x - 3, y - 3, 7, 7);
     });
 
@@ -882,7 +882,7 @@
 
   // Chao types with color palettes
   const CHAO_TYPES = {
-    neutral:  { body: '#5bc0eb', highlight: '#8dd8f8', belly: '#d4f1ff', bobble: '#ffd600', name: 'Neutral' },
+    neutral:  { body: '#5c6a8a', highlight: '#8dd8f8', belly: '#d4f1ff', bobble: '#ffd600', name: 'Neutral' },
     hero:     { body: '#5ce05c', highlight: '#8ef08e', belly: '#d4ffd4', bobble: '#ff69b4', name: 'Hero' },
     dark:     { body: '#9b59b6', highlight: '#c39bd3', belly: '#e8d5f5', bobble: '#e74c3c', name: 'Dark' },
     power:    { body: '#e74c3c', highlight: '#f1948a', belly: '#fadbd8', bobble: '#ffd600', name: 'Power' },
@@ -1080,12 +1080,12 @@
     const cy = y + bounce;
 
     // Shadow (pixelated rectangle)
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillStyle = 'rgba(42, 32, 16, 0.2)';
     ctx.fillRect(x - 12 * s, y + 34 * s, 24 * s, 4 * s);
 
     if (stage === 0) {
       // EGG — stacked pixel rectangles
-      ctx.fillStyle = '#b0b0b0';
+      ctx.fillStyle = '#8b7e5a';
       ctx.fillRect(x - 6 * s, cy - 14 * s, 12 * s, 2 * s);
       ctx.fillRect(x - 10 * s, cy - 12 * s, 20 * s, 2 * s);
       ctx.fillRect(x - 12 * s, cy - 10 * s, 24 * s, 18 * s);
@@ -1101,7 +1101,7 @@
 
       // Crack
       if (chao.xp >= 12) {
-        ctx.fillStyle = '#707070';
+        ctx.fillStyle = '#8b7e5a';
         ctx.fillRect(x - 4 * s, cy - 4 * s, 2 * s, 2 * s);
         ctx.fillRect(x - 2 * s, cy - 2 * s, 2 * s, 2 * s);
         ctx.fillRect(x, cy - 4 * s, 2 * s, 2 * s);
@@ -1171,11 +1171,11 @@
 
     if (blinking && mood !== 'sad') {
       // Blink — horizontal line
-      ctx.fillStyle = '#1a1a1a';
+      ctx.fillStyle = '#2a2010';
       ctx.fillRect(x - eyeSpacing - eyeSize, eyeY, eyeSize * 2, s);
       ctx.fillRect(x + eyeSpacing - eyeSize, eyeY, eyeSize * 2, s);
     } else {
-      ctx.fillStyle = '#1a1a1a';
+      ctx.fillStyle = '#2a2010';
       if (mood === 'sad') {
         // Sad — flat top eyes
         ctx.fillRect(x - eyeSpacing - eyeSize, eyeY, eyeSize * 2, eyeSize);
@@ -1198,17 +1198,17 @@
 
     // MOUTH (pixel)
     if (mood === 'happy') {
-      ctx.fillStyle = '#e94560';
+      ctx.fillStyle = '#8a4a2a';
       ctx.fillRect(x - 2 * s, eyeY + 4 * s, 4 * s, s);
       ctx.fillRect(x - 3 * s, eyeY + 3 * s, s, s);
       ctx.fillRect(x + 2 * s, eyeY + 3 * s, s, s);
     } else if (mood === 'sad') {
-      ctx.fillStyle = '#e94560';
+      ctx.fillStyle = '#8a4a2a';
       ctx.fillRect(x - 2 * s, eyeY + 5 * s, 4 * s, s);
       ctx.fillRect(x - 3 * s, eyeY + 6 * s, s, s);
       ctx.fillRect(x + 2 * s, eyeY + 6 * s, s, s);
     } else {
-      ctx.fillStyle = '#e94560';
+      ctx.fillStyle = '#8a4a2a';
       ctx.fillRect(x - 2 * s, eyeY + 4 * s, 4 * s, s);
     }
 
@@ -1249,14 +1249,14 @@
 
     // Tears (pixel)
     if (mood === 'sad' && frame % 60 < 30) {
-      ctx.fillStyle = '#5bc0eb';
+      ctx.fillStyle = '#5c6a8a';
       const tearOff = (frame % 60) * 0.8 * s;
       ctx.fillRect(x - eyeSpacing, eyeY + eyeSize + tearOff, 2 * s, 3 * s);
     }
 
     // Sleeping Z's
     if (chao.energy < 30) {
-      ctx.fillStyle = '#b0b0b0';
+      ctx.fillStyle = '#8b7e5a';
       ctx.font = `${Math.round(8 * s)}px "Press Start 2P", monospace`;
       ctx.fillText('z', x + 14 * s + Math.round(Math.sin(frame * 0.03) * 2) * s, cy - 18 * s + bounce);
       ctx.font = `${Math.round(6 * s)}px "Press Start 2P", monospace`;
@@ -1312,7 +1312,7 @@
       p.life--;
       const alpha = p.life / p.maxLife;
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = '#e94560';
+      ctx.fillStyle = '#8a4a2a';
       drawHeart(ctx, p.x, p.y, p.size);
       ctx.globalAlpha = 1;
     });
@@ -1348,17 +1348,17 @@
     petAnimFrame++;
 
     // Garden background - pixel ground
-    ctx.fillStyle = 'rgba(232, 232, 232, 0.06)';
+    ctx.fillStyle = 'rgba(42, 32, 16, 0.08)';
     ctx.fillRect(0, h * 0.78, w, h * 0.22);
     // Pixel ground line
-    ctx.fillStyle = 'rgba(232, 232, 232, 0.12)';
+    ctx.fillStyle = 'rgba(42, 32, 16, 0.12)';
     const groundY = Math.round(h * 0.78);
     for (let gx = 0; gx < w; gx += 8) {
       const gy = groundY + ((gx / 8) % 3 === 0 ? -2 : 0);
       ctx.fillRect(gx, gy, 8, 2);
     }
     // Small pixel grass tufts
-    ctx.fillStyle = 'rgba(232, 232, 232, 0.08)';
+    ctx.fillStyle = 'rgba(42, 32, 16, 0.1)';
     for (let gx = 20; gx < w - 20; gx += 40) {
       ctx.fillRect(gx, groundY - 4, 2, 4);
       ctx.fillRect(gx + 4, groundY - 6, 2, 6);
