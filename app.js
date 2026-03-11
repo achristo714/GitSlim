@@ -19,9 +19,8 @@
     fasts: [],           // { start: ts, end: ts|null }
     fastingStreak: 0,
     onboarded: false,
-    petName: 'Buddy',
-    petHappiness: 80,
-    petEnergy: 80,
+    chao: [],            // array of chao objects
+    activeChao: 0,       // index of selected chao
     petLastFed: null,    // timestamp of last interaction
   };
 
@@ -96,6 +95,13 @@
     // Reset
     $('#reset-btn').addEventListener('click', handleReset);
 
+    // Pet the Chao (tap canvas)
+    $('#pet-canvas').addEventListener('click', handlePetChao);
+    $('#pet-canvas').addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      handlePetChao(e.touches[0]);
+    }, { passive: false });
+
     // Fasting
     $('#fasting-start-btn').addEventListener('click', startFast);
     $('#fasting-end-btn').addEventListener('click', endFast);
@@ -134,9 +140,8 @@
     state.unit = unit;
     state.goalWeight = goal;
     state.heightIn = ft * 12 + inches;
-    state.petName = petName || 'Buddy';
-    state.petHappiness = 80;
-    state.petEnergy = 80;
+    state.chao = [createChao(petName || 'Buddy', 'neutral')];
+    state.activeChao = 0;
     state.petLastFed = Date.now();
     state.onboarded = true;
 
@@ -690,7 +695,8 @@
   // ===== Settings =====
   function openSettings() {
     $('#settings-name').value = state.name;
-    $('#settings-pet-name').value = state.petName;
+    const ac = getActiveChao();
+    $('#settings-pet-name').value = ac ? ac.name : '';
     $('#settings-goal').value = state.goalWeight;
     $('#settings-unit').value = state.unit;
     $('#settings-unit-label').textContent = state.unit;
@@ -707,7 +713,8 @@
 
   function saveSettings() {
     state.name = $('#settings-name').value.trim() || 'Friend';
-    state.petName = $('#settings-pet-name').value.trim() || 'Buddy';
+    const settingsChao = getActiveChao();
+    if (settingsChao) settingsChao.name = $('#settings-pet-name').value.trim() || 'Buddy';
     state.goalWeight = parseFloat($('#settings-goal').value) || state.goalWeight;
     state.unit = $('#settings-unit').value;
     const ft = parseInt($('#settings-height-ft').value) || 5;
@@ -870,225 +877,135 @@
     toast._timer = setTimeout(() => toast.classList.add('hidden'), 2500);
   }
 
-  // ===== Pixel Pet System =====
-  // 5 evolution stages based on level: Egg, Baby, Kid, Teen, Champion
-  // Each stage is a pixel art sprite drawn on canvas
+  // ===== Chao Garden System =====
+  // Inspired by SA2 Chao Garden - raise multiple Chao through your fitness journey
 
-  const PET_SPRITES = {
-    // Each sprite is a grid of hex colors (null = transparent)
-    // 16x16 pixel art, scaled up on canvas
-    egg: [
-      '................',
-      '......GGGG......',
-      '....GGWWWWGG....',
-      '...GWWWWWWWWG...',
-      '..GWWWWWWWWWWG..',
-      '..GWWPPWWPPWWG..',
-      '..GWWWWWWWWWWG..',
-      '..GWWWPPPPWWWG..',
-      '..GWWWWWWWWWWG..',
-      '...GWWWWWWWWG...',
-      '...GGWWWWWWGG...',
-      '....GGGGGGGG....',
-      '................',
-      '................',
-      '................',
-      '................',
-    ],
-    baby: [
-      '................',
-      '......CCCC......',
-      '....CCCCCCCC....',
-      '...CCCCCCCCCC...',
-      '..CCCCCCCCCCCC..',
-      '..CC.EE..EE.CC..',
-      '..CCCCCCCCCCCC..',
-      '..CCC.PPPP.CCC..',
-      '..CCCCCCCCCCCC..',
-      '...CCCCCCCCCC...',
-      '....CCCCCCCC....',
-      '....CC....CC....',
-      '...CCC....CCC...',
-      '................',
-      '................',
-      '................',
-    ],
-    kid: [
-      '....CCCCCCCC....',
-      '..CCCCCCCCCCCC..',
-      '..CCCCCCCCCCCC..',
-      '.CCC.EE..EE.CCC.',
-      '.CCCCCCCCCCCCCC.',
-      '.CCC..PPPP..CCC.',
-      '.CCCCCCCCCCCCCC.',
-      '..CCCCCCCCCCCC..',
-      '....FFFFFFFF....',
-      '...FFFFFFFFFF...',
-      '...FFFFFFFFFF...',
-      '...FF.FFFF.FF...',
-      '...FF.FFFF.FF...',
-      '..CC..FFFF..CC..',
-      '..CCC......CCC..',
-      '................',
-    ],
-    teen: [
-      '...AACCCCCCAA...',
-      '..AACCCCCCCCAA..',
-      '..CCCCCCCCCCCC..',
-      '.CCC.EE..EE.CCC.',
-      '.CCCCEEYYEECCCC.',
-      '.CCC..PPPP..CCC.',
-      '.CCCCCCCCCCCCCC.',
-      '..CCCCCCCCCCCC..',
-      '...FFFFFFFFFFF..',
-      '..FFFFFFFFFFFF..',
-      '..FFFFFFFFFFFF..',
-      '..FF..FFFF..FF..',
-      '..FF..FFFF..FF..',
-      '.CCC..FFFF..CCC.',
-      '.CCC........CCC.',
-      '................',
-    ],
-    champion: [
-      '....YY....YY....',
-      '...YYYYYYYYYY...',
-      '....YYYYYYYY....',
-      '..CCCCCCCCCCCC..',
-      '.CCCCCCCCCCCCCC.',
-      '.CCC.EE..EE.CCC.',
-      '.CCCCEEYYEECCCC.',
-      '.CCC.MPPPM.CCC.',
-      '.CCCCCCCCCCCCCC.',
-      '..CCCCCCCCCCCC..',
-      '..RRFFFFFFFFRR..',
-      '..RFFFFFFFFFFF..',
-      '..FF..FFFF..FF..',
-      '..FF..FFFF..FF..',
-      '.CCC..FFFF..CCC.',
-      '.CCC........CCC.',
-    ],
+  // Chao types with color palettes
+  const CHAO_TYPES = {
+    neutral:  { body: '#5bc0eb', highlight: '#8dd8f8', belly: '#d4f1ff', bobble: '#ffd600', name: 'Neutral' },
+    hero:     { body: '#5ce05c', highlight: '#8ef08e', belly: '#d4ffd4', bobble: '#ff69b4', name: 'Hero' },
+    dark:     { body: '#9b59b6', highlight: '#c39bd3', belly: '#e8d5f5', bobble: '#e74c3c', name: 'Dark' },
+    power:    { body: '#e74c3c', highlight: '#f1948a', belly: '#fadbd8', bobble: '#ffd600', name: 'Power' },
+    swim:     { body: '#00bcd4', highlight: '#4dd0e1', belly: '#b2ebf2', bobble: '#00e676', name: 'Swim' },
+    fly:      { body: '#ff9800', highlight: '#ffb74d', belly: '#ffe0b2', bobble: '#e040fb', name: 'Fly' },
+    run:      { body: '#e91e63', highlight: '#f06292', belly: '#f8bbd0', bobble: '#00e5ff', name: 'Run' },
+    chaos:    { body: '#ffd600', highlight: '#ffeb3b', belly: '#fff9c4', bobble: '#00e5ff', name: 'Chaos' },
   };
 
-  // Sad variants - droop features
-  const PET_SPRITES_SAD = {
-    egg: [
-      '................',
-      '......GGGG......',
-      '....GGGGGGGG....',
-      '...GGGGGGGGGG...',
-      '..GGGGGGGGGGGG..',
-      '..GG.EE..EE.GG..',
-      '..GGGGGGGGGGGG..',
-      '..GGGGGGGGGGGG..',
-      '..GGG.PPPP.GGG..',
-      '...GGGGGGGGGG...',
-      '...GGGGGGGGGG...',
-      '....GGGGGGGG....',
-      '................',
-      '................',
-      '................',
-      '................',
-    ],
-    baby: [
-      '................',
-      '......DDDDDD....',
-      '....DDDDDDDD....',
-      '...DDDDDDDDDD..',
-      '..DDDDDDDDDDDD.',
-      '..DD.EE..EE.DD..',
-      '..DDDDDDDDDDDD.',
-      '..DDDDDDDDDDDD.',
-      '..DDD.PPPP.DDD..',
-      '...DDDDDDDDDD..',
-      '....DDDDDDDD....',
-      '....DD....DD....',
-      '...DDD....DDD...',
-      '................',
-      '................',
-      '................',
-    ],
-  };
+  // Unlock milestones: [type, trigger description, check function]
+  const CHAO_UNLOCKS = [
+    { type: 'hero',  desc: 'Reach Level 3',     check: () => state.level >= 3 },
+    { type: 'dark',  desc: 'Complete 5 fasts',   check: () => completedFasts() >= 5 },
+    { type: 'power', desc: 'Lose 10 total',      check: () => totalLost() >= 10 },
+    { type: 'swim',  desc: '14-day streak',      check: () => calcStreak() >= 14 },
+    { type: 'fly',   desc: 'Reach Level 7',      check: () => state.level >= 7 },
+    { type: 'run',   desc: 'Lose 25 total',      check: () => totalLost() >= 25 },
+    { type: 'chaos', desc: 'Reach goal weight',  check: () => state.entries.length > 0 && lastWeight() <= state.goalWeight },
+  ];
 
-  const SPRITE_COLORS = {
-    'C': '#5bc0eb', // body cyan
-    'E': '#1a1a2e', // eyes dark
-    'P': '#e94560', // mouth/cheeks
-    'G': '#9a9ab0', // egg grey
-    'W': '#eaeaea', // egg white
-    'F': '#7b2ff7', // clothes purple
-    'Y': '#ffd600', // crown/sparkle yellow
-    'A': '#00d2ff', // accessories accent
-    'R': '#e94560', // cape red
-    'M': '#eaeaea', // mouth smile white
-    'D': '#6a6a8a', // sad body
-    '.': null,       // transparent
-  };
-
-  let petAnimFrame = 0;
-  let petBounceY = 0;
-  let petAnimTimer = null;
-
-  function getPetStage() {
-    const lvl = state.level;
-    if (lvl >= 10) return 'champion';
-    if (lvl >= 7) return 'teen';
-    if (lvl >= 4) return 'kid';
-    if (lvl >= 2) return 'baby';
-    return 'egg';
+  function createChao(name, type) {
+    return {
+      name: name,
+      type: type,
+      happiness: 80,
+      energy: 80,
+      stage: 0,   // 0=egg, 1=child, 2=teen, 3=adult, 4=chaos
+      xp: 0,      // chao-specific XP for evolution
+      born: Date.now(),
+      lastFed: Date.now(),
+    };
   }
 
-  function getPetStageNum() {
-    const s = getPetStage();
-    return { egg: 1, baby: 2, kid: 3, teen: 4, champion: 5 }[s];
+  function getActiveChao() {
+    if (!state.chao || state.chao.length === 0) return null;
+    return state.chao[state.activeChao] || state.chao[0];
   }
 
-  function getPetMood() {
-    const h = state.petHappiness;
-    if (h >= 60) return 'happy';
-    if (h >= 30) return 'ok';
+  function getChaoStage(chao) {
+    if (chao.xp >= 400) return 4;
+    if (chao.xp >= 200) return 3;
+    if (chao.xp >= 80)  return 2;
+    if (chao.xp >= 20)  return 1;
+    return 0;
+  }
+
+  const STAGE_NAMES = ['Egg', 'Child', 'Teen', 'Adult', 'Chaos'];
+
+  function getChaoMood(chao) {
+    if (chao.happiness >= 60) return 'happy';
+    if (chao.happiness >= 30) return 'ok';
     return 'sad';
   }
 
-  function getPetMessage() {
-    const mood = getPetMood();
-    const stage = getPetStage();
-    const hoursSinceLog = getHoursSinceLastLog();
-    const fasting = currentFast() !== null;
+  let petAnimFrame = 0;
+  let petAnimTimer = null;
 
-    if (hoursSinceLog > 48) return "I miss you... please log your weight!";
-    if (hoursSinceLog > 24) return "It's been a while... come say hi?";
+  // Check and unlock new Chao
+  function checkChaoUnlocks() {
+    const ownedTypes = state.chao.map(c => c.type);
+    CHAO_UNLOCKS.forEach(unlock => {
+      if (!ownedTypes.includes(unlock.type) && unlock.check()) {
+        const typeInfo = CHAO_TYPES[unlock.type];
+        const newChao = createChao(typeInfo.name, unlock.type);
+        state.chao.push(newChao);
+        save();
+        showToast(`New Chao hatched: ${typeInfo.name}!`, 'xp');
+        setTimeout(() => showAchievement({
+          icon: '\u{1F95A}',
+          name: `${typeInfo.name} Chao!`,
+          desc: `A new ${typeInfo.name} Chao joined your garden!`
+        }), 600);
+      }
+    });
+  }
 
-    if (mood === 'sad') {
-      const sadMsgs = [
-        "I'm feeling down... log your weight to cheer me up!",
-        "I need attention... track something for me?",
-        "Don't forget about me..."
-      ];
-      return sadMsgs[Math.floor(Math.random() * sadMsgs.length)];
-    }
+  function feedPet(action) {
+    state.petLastFed = Date.now();
+    // Feed ALL chao (they all benefit from your actions)
+    state.chao.forEach(chao => {
+      chao.lastFed = Date.now();
+      switch (action) {
+        case 'log':
+          chao.happiness = Math.min(100, chao.happiness + 15);
+          chao.energy = Math.min(100, chao.energy + 10);
+          chao.xp += 5;
+          break;
+        case 'fast_complete':
+          chao.happiness = Math.min(100, chao.happiness + 20);
+          chao.energy = Math.min(100, chao.energy + 15);
+          chao.xp += 10;
+          break;
+        case 'achievement':
+          chao.happiness = Math.min(100, chao.happiness + 25);
+          chao.xp += 15;
+          break;
+        case 'streak':
+          chao.happiness = Math.min(100, chao.happiness + 10);
+          chao.xp += 3;
+          break;
+      }
+      // Check for evolution
+      const oldStage = chao.stage;
+      chao.stage = getChaoStage(chao);
+      if (chao.stage > oldStage) {
+        showToast(`${chao.name} evolved to ${STAGE_NAMES[chao.stage]}!`, 'xp');
+      }
+    });
+    checkChaoUnlocks();
+    save();
+  }
 
-    if (fasting) {
-      const fastMsgs = [
-        "We're fasting together! Stay strong!",
-        "Almost there... I believe in you!",
-        "Fasting buddies forever!",
-      ];
-      return fastMsgs[Math.floor(Math.random() * fastMsgs.length)];
-    }
-
-    if (mood === 'ok') {
-      return "I could use some more attention...";
-    }
-
-    const happyMsgs = {
-      egg: ["I'm hatching soon! Keep logging!", "Warm and cozy in here~", "I can feel myself growing!"],
-      baby: ["Goo goo! You're doing great!", "I love when you check in!", "*happy wiggles*"],
-      kid: ["Let's crush our goals today!", "You're my favorite human!", "We make a great team!"],
-      teen: ["Looking strong! Keep it up!", "I'm so proud of your progress!", "We're unstoppable!"],
-      champion: ["WE'RE CHAMPIONS! Nothing can stop us!", "Look how far we've come!", "You're an inspiration!"],
-    };
-    const msgs = happyMsgs[stage];
-    return msgs[Math.floor(Math.random() * msgs.length)];
+  function updatePetStats() {
+    state.chao.forEach(chao => {
+      const hoursSinceFed = (Date.now() - chao.lastFed) / 3600000;
+      const decayRate = Math.min(hoursSinceFed, 72) * (5 / 12);
+      chao.happiness = Math.max(0, Math.min(100, chao.happiness - decayRate * 0.01));
+      if (currentFast()) {
+        chao.energy = Math.max(20, chao.energy - 0.01);
+      } else {
+        chao.energy = Math.min(100, chao.energy + 0.01);
+      }
+    });
   }
 
   function getHoursSinceLastLog() {
@@ -1097,160 +1014,478 @@
     return (Date.now() - lastEntry.ts) / 3600000;
   }
 
-  function updatePetStats() {
-    // Decay happiness and energy over time
+  function getPetMessage() {
+    const chao = getActiveChao();
+    if (!chao) return '';
+    const mood = getChaoMood(chao);
+    const stage = chao.stage;
     const hoursSinceLog = getHoursSinceLastLog();
-    const hoursSinceFed = state.petLastFed
-      ? (Date.now() - state.petLastFed) / 3600000
-      : 999;
+    const fasting = currentFast() !== null;
+    const name = chao.name;
 
-    // Slow decay: lose ~5 happiness per 12 hours of no interaction
-    const decayRate = Math.min(hoursSinceFed, 72) * (5 / 12);
-    state.petHappiness = Math.max(0, Math.min(100, state.petHappiness - decayRate * 0.01));
+    if (hoursSinceLog > 48) return `${name} misses you... please log your weight!`;
+    if (hoursSinceLog > 24) return `${name} is waiting for you...`;
 
-    // Energy tied to fasting
-    if (currentFast()) {
-      state.petEnergy = Math.max(20, state.petEnergy - 0.01);
+    if (mood === 'sad') {
+      const msgs = [
+        `${name} is feeling lonely...`,
+        `${name} needs attention...`,
+        `${name} looks droopy...`
+      ];
+      return msgs[Math.floor(Math.random() * msgs.length)];
+    }
+
+    if (fasting) {
+      const msgs = [
+        `${name} is fasting with you! Stay strong!`,
+        `${name} believes in you!`,
+        `${name} is cheering you on!`,
+      ];
+      return msgs[Math.floor(Math.random() * msgs.length)];
+    }
+
+    if (mood === 'ok') return `${name} could use some love...`;
+
+    const happyMsgs = [
+      [`${name} is cozy in the egg~`, `${name} is wiggling!`, `${name} feels warm...`],
+      [`${name} is bouncing happily!`, `${name} loves you!`, `*${name} does a little dance*`],
+      [`${name} is getting stronger!`, `${name} is so proud of you!`, `${name} is thriving!`],
+      [`${name} flexes confidently!`, `${name}: "We're unstoppable!"`, `${name} sparkles with joy!`],
+      [`${name} radiates chaos energy!`, `${name}: "WE ARE CHAMPIONS!"`, `${name} glows with power!`],
+    ];
+    const msgs = happyMsgs[Math.min(stage, 4)];
+    return msgs[Math.floor(Math.random() * msgs.length)];
+  }
+
+  // ===== Drawing Chao =====
+  function drawChao(ctx, chao, x, y, scale, frame) {
+    const colors = CHAO_TYPES[chao.type] || CHAO_TYPES.neutral;
+    const mood = getChaoMood(chao);
+    const stage = chao.stage;
+    const s = scale;
+
+    const bounce = Math.sin(frame * 0.06 + x) * 2 * s;
+    const breathe = Math.sin(frame * 0.03 + x) * 1 * s;
+    const cy = y + bounce;
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.beginPath();
+    ctx.ellipse(x, y + 38 * s, 14 * s, 4 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (stage === 0) {
+      // EGG - speckled oval
+      ctx.fillStyle = '#eaeaea';
+      ctx.beginPath();
+      ctx.ellipse(x, cy, 14 * s, 18 * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Speckles
+      ctx.fillStyle = colors.body;
+      const spots = [[- 6, -8], [4, -4], [-3, 6], [7, 3], [-8, 1]];
+      spots.forEach(([sx, sy]) => {
+        ctx.beginPath();
+        ctx.arc(x + sx * s, cy + sy * s, 2.5 * s, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      // Crack lines when close to hatching
+      if (chao.xp >= 12) {
+        ctx.strokeStyle = '#bbb';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x - 4 * s, cy - 6 * s);
+        ctx.lineTo(x, cy - 2 * s);
+        ctx.lineTo(x + 3 * s, cy - 7 * s);
+        ctx.stroke();
+      }
+      return;
+    }
+
+    // BODY - teardrop/round Chao shape
+    const bodyH = (stage >= 3) ? 22 : (stage >= 2) ? 20 : 16;
+    const bodyW = (stage >= 3) ? 16 : (stage >= 2) ? 14 : 12;
+
+    // Body
+    ctx.fillStyle = colors.body;
+    ctx.beginPath();
+    ctx.ellipse(x, cy + 4 * s, bodyW * s, bodyH * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Belly
+    ctx.fillStyle = colors.belly;
+    ctx.beginPath();
+    ctx.ellipse(x, cy + 8 * s, bodyW * 0.6 * s, bodyH * 0.55 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // FLOATING BOBBLE (emotiball) above head
+    const bobbleY = cy - bodyH * s - 8 * s + Math.sin(frame * 0.1 + x * 0.1) * 3 * s;
+    ctx.fillStyle = colors.bobble;
+    ctx.beginPath();
+    ctx.arc(x, bobbleY, (stage >= 3 ? 5 : stage >= 2 ? 4.5 : 4) * s, 0, Math.PI * 2);
+    ctx.fill();
+    // Bobble highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath();
+    ctx.arc(x - 1.5 * s, bobbleY - 1.5 * s, 1.5 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    // WINGS (small for child, bigger for older)
+    if (stage >= 1) {
+      ctx.fillStyle = colors.highlight;
+      const wingSize = (stage >= 3) ? 10 : (stage >= 2) ? 8 : 5;
+      const wingFlap = Math.sin(frame * 0.15 + x) * 3 * s;
+      // Left wing
+      ctx.beginPath();
+      ctx.ellipse(x - bodyW * s - 2 * s, cy - 2 * s + wingFlap, wingSize * 0.5 * s, wingSize * s, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      // Right wing
+      ctx.beginPath();
+      ctx.ellipse(x + bodyW * s + 2 * s, cy - 2 * s - wingFlap, wingSize * 0.5 * s, wingSize * s, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // EYES
+    const eyeY = cy - 2 * s;
+    const eyeSpacing = 5 * s;
+    const eyeSize = (stage >= 3) ? 3 : 2.5;
+    const blinking = frame % 120 > 115;
+
+    if (blinking && mood !== 'sad') {
+      // Blink - horizontal lines
+      ctx.strokeStyle = '#1a1a2e';
+      ctx.lineWidth = 1.5 * s;
+      ctx.beginPath();
+      ctx.moveTo(x - eyeSpacing - eyeSize * s, eyeY);
+      ctx.lineTo(x - eyeSpacing + eyeSize * s, eyeY);
+      ctx.moveTo(x + eyeSpacing - eyeSize * s, eyeY);
+      ctx.lineTo(x + eyeSpacing + eyeSize * s, eyeY);
+      ctx.stroke();
     } else {
-      state.petEnergy = Math.min(100, state.petEnergy + 0.01);
+      // Normal eyes
+      ctx.fillStyle = '#1a1a2e';
+      if (mood === 'sad') {
+        // Sad droopy eyes (half circles, top)
+        ctx.beginPath();
+        ctx.arc(x - eyeSpacing, eyeY, eyeSize * s, 0, Math.PI);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + eyeSpacing, eyeY, eyeSize * s, 0, Math.PI);
+        ctx.fill();
+      } else if (mood === 'happy') {
+        // Happy round eyes with sparkle
+        ctx.beginPath();
+        ctx.arc(x - eyeSpacing, eyeY, eyeSize * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + eyeSpacing, eyeY, eyeSize * s, 0, Math.PI * 2);
+        ctx.fill();
+        // Eye sparkle
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(x - eyeSpacing + 1 * s, eyeY - 1 * s, 1 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + eyeSpacing + 1 * s, eyeY - 1 * s, 1 * s, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Neutral eyes
+        ctx.beginPath();
+        ctx.arc(x - eyeSpacing, eyeY, eyeSize * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + eyeSpacing, eyeY, eyeSize * s, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // MOUTH
+    ctx.strokeStyle = mood === 'sad' ? '#e94560' : '#e94560';
+    ctx.lineWidth = 1.2 * s;
+    ctx.lineCap = 'round';
+    if (mood === 'happy') {
+      // Happy smile
+      ctx.beginPath();
+      ctx.arc(x, eyeY + 5 * s, 3 * s, 0.1 * Math.PI, 0.9 * Math.PI);
+      ctx.stroke();
+    } else if (mood === 'sad') {
+      // Sad frown
+      ctx.beginPath();
+      ctx.arc(x, eyeY + 9 * s, 3 * s, 1.1 * Math.PI, 1.9 * Math.PI);
+      ctx.stroke();
+    } else {
+      // Neutral line
+      ctx.beginPath();
+      ctx.moveTo(x - 2 * s, eyeY + 6 * s);
+      ctx.lineTo(x + 2 * s, eyeY + 6 * s);
+      ctx.stroke();
+    }
+
+    // FEET (little nubs at bottom)
+    ctx.fillStyle = colors.body;
+    ctx.beginPath();
+    ctx.ellipse(x - 5 * s, cy + bodyH * s - 2 * s, 4 * s, 2.5 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(x + 5 * s, cy + bodyH * s - 2 * s, 4 * s, 2.5 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // HANDS (little round nubs on sides)
+    if (stage >= 2) {
+      ctx.fillStyle = colors.highlight;
+      ctx.beginPath();
+      ctx.arc(x - bodyW * s + 1 * s, cy + 10 * s, 3 * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x + bodyW * s - 1 * s, cy + 10 * s, 3 * s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Stage 4 (Chaos) - glowing aura
+    if (stage >= 4) {
+      ctx.strokeStyle = colors.bobble;
+      ctx.lineWidth = 1.5 * s;
+      ctx.globalAlpha = 0.2 + Math.sin(frame * 0.08) * 0.15;
+      ctx.beginPath();
+      ctx.ellipse(x, cy + 4 * s, (bodyW + 6) * s, (bodyH + 6) * s, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    // Mood particles
+    if (mood === 'happy' && frame % 40 < 8) {
+      ctx.fillStyle = colors.bobble;
+      const px1 = x - 20 * s + Math.sin(frame * 0.2) * 10 * s;
+      const py1 = cy - 20 * s - (frame % 40) * s;
+      ctx.fillRect(px1, py1, 2 * s, 2 * s);
+      ctx.fillRect(px1 + 25 * s, py1 + 5 * s, 2 * s, 2 * s);
+    }
+
+    if (mood === 'sad' && frame % 60 < 30) {
+      ctx.fillStyle = '#00d2ff';
+      const tearY2 = eyeY + 4 * s + (frame % 60) * 1 * s;
+      ctx.beginPath();
+      ctx.ellipse(x - eyeSpacing, tearY2, 1 * s, 1.5 * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Sleeping Z's
+    if (chao.energy < 30) {
+      ctx.fillStyle = '#9a9ab0';
+      ctx.font = `bold ${9 * s}px monospace`;
+      ctx.fillText('z', x + 15 * s + Math.sin(frame * 0.03) * 3 * s, cy - 20 * s + bounce);
+      ctx.font = `bold ${7 * s}px monospace`;
+      ctx.fillText('z', x + 22 * s, cy - 28 * s + bounce);
     }
   }
 
-  function feedPet(action) {
-    // Called when user interacts (logs weight, completes fast, etc.)
-    state.petLastFed = Date.now();
-    switch (action) {
-      case 'log':
-        state.petHappiness = Math.min(100, state.petHappiness + 15);
-        state.petEnergy = Math.min(100, state.petEnergy + 10);
-        break;
-      case 'fast_complete':
-        state.petHappiness = Math.min(100, state.petHappiness + 20);
-        state.petEnergy = Math.min(100, state.petEnergy + 15);
-        break;
-      case 'achievement':
-        state.petHappiness = Math.min(100, state.petHappiness + 25);
-        break;
-      case 'streak':
-        state.petHappiness = Math.min(100, state.petHappiness + 10);
-        break;
+  // ===== Tap to pet =====
+  let heartParticles = [];
+  let lastPetTime = 0;
+
+  function handlePetChao(e) {
+    const now = Date.now();
+    // Rate limit: once per 500ms
+    if (now - lastPetTime < 500) return;
+    lastPetTime = now;
+
+    const canvas = $('#pet-canvas');
+    const rect = canvas.getBoundingClientRect();
+    const tapX = (e.clientX || e.pageX) - rect.left;
+    const tapY = (e.clientY || e.pageY) - rect.top;
+
+    // Spawn heart particles at tap location
+    for (let i = 0; i < 3; i++) {
+      heartParticles.push({
+        x: tapX + (Math.random() - 0.5) * 30,
+        y: tapY,
+        vx: (Math.random() - 0.5) * 2,
+        vy: -1.5 - Math.random() * 2,
+        life: 40 + Math.random() * 20,
+        maxLife: 40 + Math.random() * 20,
+        size: 6 + Math.random() * 4,
+      });
     }
-    save();
+
+    // Boost active chao happiness a small amount
+    const chao = getActiveChao();
+    if (chao) {
+      chao.happiness = Math.min(100, chao.happiness + 2);
+      chao.lastFed = Date.now();
+      state.petLastFed = Date.now();
+      save();
+      renderPet();
+    }
   }
 
-  function drawPet() {
+  function drawHearts(ctx) {
+    heartParticles = heartParticles.filter(p => p.life > 0);
+    heartParticles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.02; // slight gravity
+      p.life--;
+      const alpha = p.life / p.maxLife;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#e94560';
+      drawHeart(ctx, p.x, p.y, p.size);
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  function drawHeart(ctx, x, y, size) {
+    const s = size / 10;
+    ctx.beginPath();
+    ctx.moveTo(x, y + 3 * s);
+    ctx.bezierCurveTo(x, y, x - 5 * s, y, x - 5 * s, y + 3 * s);
+    ctx.bezierCurveTo(x - 5 * s, y + 6 * s, x, y + 9 * s, x, y + 10 * s);
+    ctx.bezierCurveTo(x, y + 9 * s, x + 5 * s, y + 6 * s, x + 5 * s, y + 3 * s);
+    ctx.bezierCurveTo(x + 5 * s, y, x, y, x, y + 3 * s);
+    ctx.fill();
+  }
+
+  function drawGarden() {
     const canvas = $('#pet-canvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const mood = getPetMood();
-    const stage = getPetStage();
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    const w = rect.width;
+    const h = rect.height;
 
-    // Pick sprite - use sad variant if available and mood is sad
-    let sprite;
-    if (mood === 'sad' && PET_SPRITES_SAD[stage]) {
-      sprite = PET_SPRITES_SAD[stage];
-    } else {
-      sprite = PET_SPRITES[stage];
-    }
-
-    const size = 160;
-    const px = size / 16; // 10px per pixel
-    ctx.clearRect(0, 0, size, size);
-
-    // Bounce animation
+    ctx.clearRect(0, 0, w, h);
     petAnimFrame++;
-    const bounce = Math.sin(petAnimFrame * 0.08) * 3;
-    const breathe = Math.sin(petAnimFrame * 0.04) * 1;
 
-    // Draw pixel grid
-    for (let row = 0; row < 16; row++) {
-      for (let col = 0; col < sprite[row].length; col++) {
-        const ch = sprite[row][col];
-        const color = SPRITE_COLORS[ch];
-        if (!color) continue;
+    // Garden background - subtle grass
+    const grassGrad = ctx.createLinearGradient(0, h * 0.7, 0, h);
+    grassGrad.addColorStop(0, 'rgba(0, 80, 40, 0.15)');
+    grassGrad.addColorStop(1, 'rgba(0, 60, 30, 0.25)');
+    ctx.fillStyle = grassGrad;
+    ctx.beginPath();
+    ctx.ellipse(w / 2, h + 10, w * 0.6, h * 0.35, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-        ctx.fillStyle = color;
-        const x = col * px;
-        const y = row * px + bounce;
+    // Draw each chao
+    const chaoCount = state.chao.length;
+    if (chaoCount === 0) return;
 
-        // Slight scale for breathing
-        ctx.fillRect(x, y + breathe, px, px);
+    if (chaoCount === 1) {
+      drawChao(ctx, state.chao[0], w / 2, h * 0.42, 2, petAnimFrame);
+      drawHearts(ctx);
+    } else {
+      // Spread chao across garden
+      const positions = [];
+      const spacing = Math.min(w / (chaoCount + 1), 80);
+      const startX = (w - spacing * (chaoCount - 1)) / 2;
+      for (let i = 0; i < chaoCount; i++) {
+        const px = startX + i * spacing;
+        const py = h * 0.42 + Math.sin(i * 1.5) * 10;
+        const sc = chaoCount <= 3 ? 1.6 : chaoCount <= 5 ? 1.3 : 1;
+        positions.push({ x: px, y: py, scale: sc });
       }
-    }
 
-    // Draw eyes blinking occasionally
-    if (petAnimFrame % 120 > 115 && mood !== 'sad') {
-      // Blink: draw skin color over eyes
-      const bodyColor = mood === 'sad' ? '#6a6a8a' : '#5bc0eb';
-      for (let row = 0; row < 16; row++) {
-        for (let col = 0; col < sprite[row].length; col++) {
-          if (sprite[row][col] === 'E') {
-            ctx.fillStyle = bodyColor;
-            ctx.fillRect(col * px, row * px + bounce + breathe, px, px);
-          }
+      // Draw active chao last (on top) and slightly bigger
+      const order = state.chao.map((c, i) => i).sort((a, b) => {
+        if (a === state.activeChao) return 1;
+        if (b === state.activeChao) return -1;
+        return 0;
+      });
+
+      order.forEach(i => {
+        const isActive = i === state.activeChao;
+        const pos = positions[i];
+        const sc = isActive ? pos.scale * 1.15 : pos.scale;
+
+        // Highlight ring for active chao
+        if (isActive) {
+          ctx.strokeStyle = 'rgba(255, 214, 0, 0.3)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.ellipse(pos.x, pos.y + 38 * sc, 18 * sc, 5 * sc, 0, 0, Math.PI * 2);
+          ctx.stroke();
         }
-      }
+
+        drawChao(ctx, state.chao[i], pos.x, pos.y, sc, petAnimFrame + i * 20);
+      });
     }
 
-    // Draw mood particles
-    if (mood === 'happy' && petAnimFrame % 30 < 5) {
-      // Sparkles
-      ctx.fillStyle = '#ffd600';
-      const sparkX = 20 + Math.sin(petAnimFrame * 0.2) * 40;
-      const sparkY = 20 + Math.cos(petAnimFrame * 0.15) * 20;
-      ctx.fillRect(sparkX, sparkY + bounce, 3, 3);
-      ctx.fillRect(sparkX + 60, sparkY + 10 + bounce, 3, 3);
-    }
-
-    if (mood === 'sad') {
-      // Tear drops
-      if (petAnimFrame % 60 < 30) {
-        ctx.fillStyle = '#00d2ff';
-        const tearY = 70 + (petAnimFrame % 60) * 1.5;
-        ctx.fillRect(45, tearY + bounce, 3, 4);
-      }
-    }
-
-    // Z's for sleeping (low energy)
-    if (state.petEnergy < 30) {
-      ctx.fillStyle = var_text2Color();
-      ctx.font = `bold ${10 + Math.sin(petAnimFrame * 0.05) * 2}px monospace`;
-      ctx.fillText('z', 125 + Math.sin(petAnimFrame * 0.03) * 5, 40 + bounce);
-      ctx.font = `bold ${8}px monospace`;
-      ctx.fillText('z', 135, 30 + bounce);
-    }
+    // Draw heart particles on top
+    drawHearts(ctx);
   }
 
-  function var_text2Color() { return '#9a9ab0'; }
+  function renderChaoSelector() {
+    const sel = $('#chao-selector');
+    if (state.chao.length <= 1) {
+      sel.innerHTML = '';
+      return;
+    }
+    sel.innerHTML = state.chao.map((chao, i) => {
+      const colors = CHAO_TYPES[chao.type] || CHAO_TYPES.neutral;
+      const active = i === state.activeChao;
+      return `<button class="chao-tab${active ? ' active' : ''}" data-idx="${i}"
+        style="--chao-color: ${colors.body}" title="${chao.name}">
+        <span class="chao-tab-dot" style="background:${colors.body}"></span>
+        <span class="chao-tab-name">${chao.name}</span>
+      </button>`;
+    }).join('');
+
+    sel.querySelectorAll('.chao-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.activeChao = parseInt(btn.dataset.idx);
+        save();
+        renderPet();
+      });
+    });
+  }
 
   function renderPet() {
-    updatePetStats();
+    // Migrate old single-pet state
+    if ((!state.chao || state.chao.length === 0) && state.onboarded) {
+      state.chao = [createChao(state.petName || 'Buddy', 'neutral')];
+      state.activeChao = 0;
+      save();
+    }
 
-    const mood = getPetMood();
+    updatePetStats();
+    checkChaoUnlocks();
+    const chao = getActiveChao();
+    if (!chao) return;
+
+    const mood = getChaoMood(chao);
     const moodLabel = $('#pet-mood-label');
     moodLabel.textContent = mood === 'happy' ? 'Happy' : mood === 'ok' ? 'Meh' : 'Sad';
     moodLabel.className = `pet-mood ${mood === 'happy' ? '' : mood}`;
 
-    $('#pet-name').textContent = state.petName;
+    const typeInfo = CHAO_TYPES[chao.type] || CHAO_TYPES.neutral;
+    $('#pet-name').textContent = chao.name;
+    $('#chao-type-label').textContent = `${typeInfo.name} Chao`;
     $('#pet-message').textContent = getPetMessage();
-    $('#pet-evolution').textContent = `Stage ${getPetStageNum()} / 5 — ${getPetStage().charAt(0).toUpperCase() + getPetStage().slice(1)}`;
+    $('#pet-evolution').textContent = `${STAGE_NAMES[chao.stage]} \u2022 Stage ${chao.stage + 1}/5 \u2022 ${chao.xp} CXP`;
 
-    // Bars
+    // Unlock hint
+    const hint = $('#chao-unlock-hint');
+    const nextUnlock = CHAO_UNLOCKS.find(u => !state.chao.some(c => c.type === u.type));
+    hint.textContent = nextUnlock
+      ? `Next Chao: ${nextUnlock.desc}`
+      : `All ${state.chao.length} Chao unlocked!`;
+
+    // Bars (active chao)
     const hBar = $('#pet-happiness-bar');
     const eBar = $('#pet-energy-bar');
-    hBar.style.width = `${state.petHappiness}%`;
-    eBar.style.width = `${state.petEnergy}%`;
-    hBar.className = `pet-bar-fill happiness-fill${state.petHappiness < 30 ? ' low' : state.petHappiness < 60 ? ' mid' : ''}`;
-    eBar.className = `pet-bar-fill energy-fill${state.petEnergy < 30 ? ' low' : state.petEnergy < 60 ? ' mid' : ''}`;
+    hBar.style.width = `${chao.happiness}%`;
+    eBar.style.width = `${chao.energy}%`;
+    hBar.className = `pet-bar-fill happiness-fill${chao.happiness < 30 ? ' low' : chao.happiness < 60 ? ' mid' : ''}`;
+    eBar.className = `pet-bar-fill energy-fill${chao.energy < 30 ? ' low' : chao.energy < 60 ? ' mid' : ''}`;
 
-    drawPet();
+    renderChaoSelector();
+    drawGarden();
   }
 
   function startPetAnimation() {
     if (petAnimTimer) return;
-    petAnimTimer = setInterval(() => {
-      drawPet();
-    }, 1000 / 15); // 15fps for that retro feel
+    petAnimTimer = setInterval(drawGarden, 1000 / 15);
   }
 
   function stopPetAnimation() {
