@@ -551,10 +551,10 @@
     }
 
     if (entries.length < 2) {
-      ctx.fillStyle = '#5a5a7a';
-      ctx.font = '14px -apple-system, sans-serif';
+      ctx.fillStyle = '#707070';
+      ctx.font = '10px "Press Start 2P", monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('Need at least 2 entries to show chart', rect.width / 2, rect.height / 2);
+      ctx.fillText('Need 2+ entries', rect.width / 2, rect.height / 2);
       $('#chart-summary').innerHTML = '';
       return;
     }
@@ -569,86 +569,86 @@
     const chartW = w - padX - 16;
     const chartH = h - padY * 2;
 
-    // Grid lines
-    ctx.strokeStyle = '#2a2a4a';
-    ctx.lineWidth = 0.5;
+    // Grid lines (dashed pixel style)
+    ctx.fillStyle = '#3a3a3a';
     const gridLines = 5;
     for (let i = 0; i <= gridLines; i++) {
-      const y = padY + (chartH / gridLines) * i;
-      ctx.beginPath();
-      ctx.moveTo(padX, y);
-      ctx.lineTo(w - 16, y);
-      ctx.stroke();
-
+      const y = Math.round(padY + (chartH / gridLines) * i);
+      // Dashed pixel line
+      for (let gx = padX; gx < w - 16; gx += 8) {
+        ctx.fillRect(gx, y, 4, 1);
+      }
       const val = maxW - (maxW - minW) * (i / gridLines);
-      ctx.fillStyle = '#5a5a7a';
-      ctx.font = '11px -apple-system, sans-serif';
+      ctx.fillStyle = '#707070';
+      ctx.font = '8px "Press Start 2P", monospace';
       ctx.textAlign = 'right';
-      ctx.fillText(val.toFixed(0), padX - 8, y + 4);
+      ctx.fillText(val.toFixed(0), padX - 6, y + 3);
+      ctx.fillStyle = '#3a3a3a';
     }
 
-    // Goal line
+    // Goal line (pixel dashed)
     if (state.goalWeight >= minW && state.goalWeight <= maxW) {
-      const goalY = padY + chartH * (1 - (state.goalWeight - minW) / (maxW - minW));
-      ctx.strokeStyle = 'rgba(0, 200, 83, 0.4)';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([6, 4]);
-      ctx.beginPath();
-      ctx.moveTo(padX, goalY);
-      ctx.lineTo(w - 16, goalY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = 'rgba(0, 200, 83, 0.6)';
-      ctx.font = '10px -apple-system, sans-serif';
+      const goalY = Math.round(padY + chartH * (1 - (state.goalWeight - minW) / (maxW - minW)));
+      ctx.fillStyle = '#707070';
+      for (let gx = padX; gx < w - 16; gx += 10) {
+        ctx.fillRect(gx, goalY, 6, 2);
+      }
+      ctx.font = '7px "Press Start 2P", monospace';
       ctx.textAlign = 'left';
-      ctx.fillText('Goal', w - 50, goalY - 5);
+      ctx.fillText('GOAL', w - 50, goalY - 4);
     }
 
-    // Weight line
-    const gradient = ctx.createLinearGradient(0, padY, 0, padY + chartH);
-    gradient.addColorStop(0, 'rgba(233, 69, 96, 0.3)');
-    gradient.addColorStop(1, 'rgba(233, 69, 96, 0)');
-
-    // Area fill
-    ctx.beginPath();
+    // Area fill (pixel scanline pattern)
+    ctx.fillStyle = 'rgba(232, 232, 232, 0.04)';
     entries.forEach((entry, i) => {
-      const x = padX + (i / (entries.length - 1)) * chartW;
-      const y = padY + chartH * (1 - (entry.weight - minW) / (maxW - minW));
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      if (i >= entries.length - 1) return;
+      const x1 = Math.round(padX + (i / (entries.length - 1)) * chartW);
+      const y1 = Math.round(padY + chartH * (1 - (entry.weight - minW) / (maxW - minW)));
+      const x2 = Math.round(padX + ((i + 1) / (entries.length - 1)) * chartW);
+      const y2 = Math.round(padY + chartH * (1 - (entries[i + 1].weight - minW) / (maxW - minW)));
+      // Fill column strips
+      for (let fx = x1; fx < x2; fx += 2) {
+        const t = (fx - x1) / (x2 - x1);
+        const fy = y1 + (y2 - y1) * t;
+        ctx.fillRect(fx, Math.round(fy), 2, Math.round(padY + chartH - fy));
+      }
     });
-    const lastX = padX + chartW;
-    const firstX = padX;
-    ctx.lineTo(lastX, padY + chartH);
-    ctx.lineTo(firstX, padY + chartH);
-    ctx.closePath();
-    ctx.fillStyle = gradient;
-    ctx.fill();
 
-    // Line
-    ctx.beginPath();
+    // Weight line (stepped pixel line)
+    ctx.fillStyle = '#e8e8e8';
     entries.forEach((entry, i) => {
-      const x = padX + (i / (entries.length - 1)) * chartW;
-      const y = padY + chartH * (1 - (entry.weight - minW) / (maxW - minW));
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      if (i >= entries.length - 1) return;
+      const x1 = Math.round(padX + (i / (entries.length - 1)) * chartW);
+      const y1 = Math.round(padY + chartH * (1 - (entry.weight - minW) / (maxW - minW)));
+      const x2 = Math.round(padX + ((i + 1) / (entries.length - 1)) * chartW);
+      const y2 = Math.round(padY + chartH * (1 - (entries[i + 1].weight - minW) / (maxW - minW)));
+
+      // Bresenham-style pixel line
+      const dx = Math.abs(x2 - x1);
+      const dy = Math.abs(y2 - y1);
+      const sx = x1 < x2 ? 2 : -2;
+      const sy = y1 < y2 ? 2 : -2;
+      let err = dx - dy;
+      let cx = x1, cyy = y1;
+      while (true) {
+        ctx.fillRect(cx, cyy, 3, 3);
+        if (Math.abs(cx - x2) < 3 && Math.abs(cyy - y2) < 3) break;
+        const e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; cx += sx; }
+        if (e2 < dx) { err += dx; cyy += sy; }
+      }
     });
-    ctx.strokeStyle = '#e94560';
-    ctx.lineWidth = 2.5;
-    ctx.lineJoin = 'round';
-    ctx.stroke();
 
-    // Points
+    // Points (pixel squares)
     entries.forEach((entry, i) => {
-      const x = padX + (i / (entries.length - 1)) * chartW;
-      const y = padY + chartH * (1 - (entry.weight - minW) / (maxW - minW));
-      ctx.beginPath();
-      ctx.arc(x, y, 3.5, 0, Math.PI * 2);
-      ctx.fillStyle = '#e94560';
-      ctx.fill();
-      ctx.strokeStyle = '#0f0f1a';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+      const x = Math.round(padX + (i / (entries.length - 1)) * chartW);
+      const y = Math.round(padY + chartH * (1 - (entry.weight - minW) / (maxW - minW)));
+      // Outer square
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(x - 4, y - 4, 9, 9);
+      // Inner square
+      ctx.fillStyle = '#e8e8e8';
+      ctx.fillRect(x - 3, y - 3, 7, 7);
     });
 
     // Summary
@@ -1057,224 +1057,210 @@
     return msgs[Math.floor(Math.random() * msgs.length)];
   }
 
-  // ===== Drawing Chao =====
+  // ===== Drawing Chao (Pixel Art) =====
+  function pxRect(ctx, x, y, w, h, s) {
+    // Snap to pixel grid for crispy rendering
+    const px = Math.round(s * 2); // pixel unit size
+    ctx.fillRect(
+      Math.round(x / px) * px,
+      Math.round(y / px) * px,
+      Math.round(w / px) * px || px,
+      Math.round(h / px) * px || px
+    );
+  }
+
   function drawChao(ctx, chao, x, y, scale, frame) {
     const colors = CHAO_TYPES[chao.type] || CHAO_TYPES.neutral;
     const mood = getChaoMood(chao);
     const stage = chao.stage;
     const s = scale;
+    const p = Math.round(s * 2); // pixel unit
 
-    const bounce = Math.sin(frame * 0.06 + x) * 2 * s;
-    const breathe = Math.sin(frame * 0.03 + x) * 1 * s;
+    const bounce = Math.round(Math.sin(frame * 0.06 + x) * 2) * s;
     const cy = y + bounce;
 
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    ctx.beginPath();
-    ctx.ellipse(x, y + 38 * s, 14 * s, 4 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
+    // Shadow (pixelated rectangle)
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(x - 12 * s, y + 34 * s, 24 * s, 4 * s);
 
     if (stage === 0) {
-      // EGG - speckled oval
-      ctx.fillStyle = '#eaeaea';
-      ctx.beginPath();
-      ctx.ellipse(x, cy, 14 * s, 18 * s, 0, 0, Math.PI * 2);
-      ctx.fill();
+      // EGG — stacked pixel rectangles
+      ctx.fillStyle = '#b0b0b0';
+      ctx.fillRect(x - 6 * s, cy - 14 * s, 12 * s, 2 * s);
+      ctx.fillRect(x - 10 * s, cy - 12 * s, 20 * s, 2 * s);
+      ctx.fillRect(x - 12 * s, cy - 10 * s, 24 * s, 18 * s);
+      ctx.fillRect(x - 10 * s, cy + 8 * s, 20 * s, 2 * s);
+      ctx.fillRect(x - 6 * s, cy + 10 * s, 12 * s, 2 * s);
+
       // Speckles
       ctx.fillStyle = colors.body;
-      const spots = [[- 6, -8], [4, -4], [-3, 6], [7, 3], [-8, 1]];
-      spots.forEach(([sx, sy]) => {
-        ctx.beginPath();
-        ctx.arc(x + sx * s, cy + sy * s, 2.5 * s, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      // Crack lines when close to hatching
+      ctx.fillRect(x - 6 * s, cy - 6 * s, 4 * s, 4 * s);
+      ctx.fillRect(x + 4 * s, cy - 2 * s, 4 * s, 4 * s);
+      ctx.fillRect(x - 2 * s, cy + 4 * s, 4 * s, 4 * s);
+      ctx.fillRect(x + 6 * s, cy - 8 * s, 3 * s, 3 * s);
+
+      // Crack
       if (chao.xp >= 12) {
-        ctx.strokeStyle = '#bbb';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x - 4 * s, cy - 6 * s);
-        ctx.lineTo(x, cy - 2 * s);
-        ctx.lineTo(x + 3 * s, cy - 7 * s);
-        ctx.stroke();
+        ctx.fillStyle = '#707070';
+        ctx.fillRect(x - 4 * s, cy - 4 * s, 2 * s, 2 * s);
+        ctx.fillRect(x - 2 * s, cy - 2 * s, 2 * s, 2 * s);
+        ctx.fillRect(x, cy - 4 * s, 2 * s, 2 * s);
+        ctx.fillRect(x + 2 * s, cy - 6 * s, 2 * s, 2 * s);
       }
       return;
     }
 
-    // BODY - teardrop/round Chao shape
-    const bodyH = (stage >= 3) ? 22 : (stage >= 2) ? 20 : 16;
-    const bodyW = (stage >= 3) ? 16 : (stage >= 2) ? 14 : 12;
+    // BODY - stacked rectangles to form round chao shape
+    const bw = (stage >= 3) ? 14 : (stage >= 2) ? 12 : 10;
+    const bh = (stage >= 3) ? 20 : (stage >= 2) ? 18 : 14;
 
-    // Body
+    // Body shape (pixel oval via stacked rects)
     ctx.fillStyle = colors.body;
-    ctx.beginPath();
-    ctx.ellipse(x, cy + 4 * s, bodyW * s, bodyH * s, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillRect(x - bw * 0.4 * s, cy - bh * 0.5 * s, bw * 0.8 * s, 2 * s);         // top
+    ctx.fillRect(x - bw * 0.7 * s, cy - bh * 0.5 * s + 2 * s, bw * 1.4 * s, 2 * s);
+    ctx.fillRect(x - bw * s, cy - bh * 0.5 * s + 4 * s, bw * 2 * s, bh * s - 4 * s); // main
+    ctx.fillRect(x - bw * 0.7 * s, cy + bh * 0.5 * s, bw * 1.4 * s, 2 * s);
+    ctx.fillRect(x - bw * 0.4 * s, cy + bh * 0.5 * s + 2 * s, bw * 0.8 * s, 2 * s);  // bottom
 
-    // Belly
+    // Belly highlight
     ctx.fillStyle = colors.belly;
-    ctx.beginPath();
-    ctx.ellipse(x, cy + 8 * s, bodyW * 0.6 * s, bodyH * 0.55 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillRect(x - bw * 0.45 * s, cy + 2 * s, bw * 0.9 * s, bh * 0.4 * s);
 
-    // FLOATING BOBBLE (emotiball) above head
-    const bobbleY = cy - bodyH * s - 8 * s + Math.sin(frame * 0.1 + x * 0.1) * 3 * s;
+    // FLOATING BOBBLE above head (the signature Chao detail!)
+    const bobbleY = cy - bh * 0.5 * s - 10 * s + Math.round(Math.sin(frame * 0.1 + x * 0.1) * 2) * s;
+    const bobSize = (stage >= 3 ? 5 : stage >= 2 ? 4 : 3.5) * s;
     ctx.fillStyle = colors.bobble;
-    ctx.beginPath();
-    ctx.arc(x, bobbleY, (stage >= 3 ? 5 : stage >= 2 ? 4.5 : 4) * s, 0, Math.PI * 2);
-    ctx.fill();
-    // Bobble highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.beginPath();
-    ctx.arc(x - 1.5 * s, bobbleY - 1.5 * s, 1.5 * s, 0, Math.PI * 2);
-    ctx.fill();
+    // Pixel circle for bobble
+    ctx.fillRect(x - bobSize * 0.7, bobbleY - bobSize, bobSize * 1.4, bobSize * 2);
+    ctx.fillRect(x - bobSize, bobbleY - bobSize * 0.7, bobSize * 2, bobSize * 1.4);
+    // Bobble shine
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillRect(x - bobSize * 0.4, bobbleY - bobSize * 0.5, bobSize * 0.5, bobSize * 0.5);
 
-    // WINGS (small for child, bigger for older)
+    // Bobble stem (thin line connecting to head)
+    ctx.fillStyle = colors.bobble;
+    ctx.globalAlpha = 0.3;
+    ctx.fillRect(x - s * 0.5, bobbleY + bobSize, s, (cy - bh * 0.5 * s) - (bobbleY + bobSize));
+    ctx.globalAlpha = 1;
+
+    // WINGS
     if (stage >= 1) {
       ctx.fillStyle = colors.highlight;
-      const wingSize = (stage >= 3) ? 10 : (stage >= 2) ? 8 : 5;
-      const wingFlap = Math.sin(frame * 0.15 + x) * 3 * s;
-      // Left wing
-      ctx.beginPath();
-      ctx.ellipse(x - bodyW * s - 2 * s, cy - 2 * s + wingFlap, wingSize * 0.5 * s, wingSize * s, -0.3, 0, Math.PI * 2);
-      ctx.fill();
+      const ws = (stage >= 3) ? 8 : (stage >= 2) ? 6 : 4;
+      const wingFlap = Math.round(Math.sin(frame * 0.15 + x) * 2) * s;
+
+      // Left wing (pixel triangleish)
+      const lx = x - bw * s - 2 * s;
+      const wy = cy - 4 * s + wingFlap;
+      ctx.fillRect(lx, wy, ws * 0.6 * s, 2 * s);
+      ctx.fillRect(lx - 2 * s, wy + 2 * s, ws * 0.6 * s + 2 * s, 2 * s);
+      ctx.fillRect(lx, wy + 4 * s, ws * 0.6 * s, 2 * s);
+
       // Right wing
-      ctx.beginPath();
-      ctx.ellipse(x + bodyW * s + 2 * s, cy - 2 * s - wingFlap, wingSize * 0.5 * s, wingSize * s, 0.3, 0, Math.PI * 2);
-      ctx.fill();
+      const rx = x + bw * s + 2 * s - ws * 0.6 * s;
+      ctx.fillRect(rx, wy, ws * 0.6 * s, 2 * s);
+      ctx.fillRect(rx, wy + 2 * s, ws * 0.6 * s + 2 * s, 2 * s);
+      ctx.fillRect(rx, wy + 4 * s, ws * 0.6 * s, 2 * s);
     }
 
-    // EYES
-    const eyeY = cy - 2 * s;
-    const eyeSpacing = 5 * s;
-    const eyeSize = (stage >= 3) ? 3 : 2.5;
+    // EYES (pixel dots)
+    const eyeY = cy - 4 * s;
+    const eyeSpacing = 4 * s;
+    const eyeSize = 2 * s;
     const blinking = frame % 120 > 115;
 
     if (blinking && mood !== 'sad') {
-      // Blink - horizontal lines
-      ctx.strokeStyle = '#1a1a2e';
-      ctx.lineWidth = 1.5 * s;
-      ctx.beginPath();
-      ctx.moveTo(x - eyeSpacing - eyeSize * s, eyeY);
-      ctx.lineTo(x - eyeSpacing + eyeSize * s, eyeY);
-      ctx.moveTo(x + eyeSpacing - eyeSize * s, eyeY);
-      ctx.lineTo(x + eyeSpacing + eyeSize * s, eyeY);
-      ctx.stroke();
+      // Blink — horizontal line
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(x - eyeSpacing - eyeSize, eyeY, eyeSize * 2, s);
+      ctx.fillRect(x + eyeSpacing - eyeSize, eyeY, eyeSize * 2, s);
     } else {
-      // Normal eyes
-      ctx.fillStyle = '#1a1a2e';
+      ctx.fillStyle = '#1a1a1a';
       if (mood === 'sad') {
-        // Sad droopy eyes (half circles, top)
-        ctx.beginPath();
-        ctx.arc(x - eyeSpacing, eyeY, eyeSize * s, 0, Math.PI);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(x + eyeSpacing, eyeY, eyeSize * s, 0, Math.PI);
-        ctx.fill();
-      } else if (mood === 'happy') {
-        // Happy round eyes with sparkle
-        ctx.beginPath();
-        ctx.arc(x - eyeSpacing, eyeY, eyeSize * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(x + eyeSpacing, eyeY, eyeSize * s, 0, Math.PI * 2);
-        ctx.fill();
-        // Eye sparkle
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.arc(x - eyeSpacing + 1 * s, eyeY - 1 * s, 1 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(x + eyeSpacing + 1 * s, eyeY - 1 * s, 1 * s, 0, Math.PI * 2);
-        ctx.fill();
+        // Sad — flat top eyes
+        ctx.fillRect(x - eyeSpacing - eyeSize, eyeY, eyeSize * 2, eyeSize);
+        ctx.fillRect(x + eyeSpacing - eyeSize, eyeY, eyeSize * 2, eyeSize);
+        // Flat brow on top
+        ctx.fillRect(x - eyeSpacing - eyeSize - s, eyeY - s, eyeSize * 2 + s, s);
+        ctx.fillRect(x + eyeSpacing - eyeSize, eyeY - s, eyeSize * 2 + s, s);
       } else {
-        // Neutral eyes
-        ctx.beginPath();
-        ctx.arc(x - eyeSpacing, eyeY, eyeSize * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(x + eyeSpacing, eyeY, eyeSize * s, 0, Math.PI * 2);
-        ctx.fill();
+        // Normal / happy — square pixel eyes
+        ctx.fillRect(x - eyeSpacing - eyeSize, eyeY - eyeSize, eyeSize * 2, eyeSize * 2);
+        ctx.fillRect(x + eyeSpacing - eyeSize, eyeY - eyeSize, eyeSize * 2, eyeSize * 2);
+        if (mood === 'happy') {
+          // Eye sparkle pixel
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(x - eyeSpacing, eyeY - eyeSize, s, s);
+          ctx.fillRect(x + eyeSpacing, eyeY - eyeSize, s, s);
+        }
       }
     }
 
-    // MOUTH
-    ctx.strokeStyle = mood === 'sad' ? '#e94560' : '#e94560';
-    ctx.lineWidth = 1.2 * s;
-    ctx.lineCap = 'round';
+    // MOUTH (pixel)
     if (mood === 'happy') {
-      // Happy smile
-      ctx.beginPath();
-      ctx.arc(x, eyeY + 5 * s, 3 * s, 0.1 * Math.PI, 0.9 * Math.PI);
-      ctx.stroke();
+      ctx.fillStyle = '#e94560';
+      ctx.fillRect(x - 2 * s, eyeY + 4 * s, 4 * s, s);
+      ctx.fillRect(x - 3 * s, eyeY + 3 * s, s, s);
+      ctx.fillRect(x + 2 * s, eyeY + 3 * s, s, s);
     } else if (mood === 'sad') {
-      // Sad frown
-      ctx.beginPath();
-      ctx.arc(x, eyeY + 9 * s, 3 * s, 1.1 * Math.PI, 1.9 * Math.PI);
-      ctx.stroke();
+      ctx.fillStyle = '#e94560';
+      ctx.fillRect(x - 2 * s, eyeY + 5 * s, 4 * s, s);
+      ctx.fillRect(x - 3 * s, eyeY + 6 * s, s, s);
+      ctx.fillRect(x + 2 * s, eyeY + 6 * s, s, s);
     } else {
-      // Neutral line
-      ctx.beginPath();
-      ctx.moveTo(x - 2 * s, eyeY + 6 * s);
-      ctx.lineTo(x + 2 * s, eyeY + 6 * s);
-      ctx.stroke();
+      ctx.fillStyle = '#e94560';
+      ctx.fillRect(x - 2 * s, eyeY + 4 * s, 4 * s, s);
     }
 
-    // FEET (little nubs at bottom)
+    // FEET (pixel nubs)
     ctx.fillStyle = colors.body;
-    ctx.beginPath();
-    ctx.ellipse(x - 5 * s, cy + bodyH * s - 2 * s, 4 * s, 2.5 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(x + 5 * s, cy + bodyH * s - 2 * s, 4 * s, 2.5 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillRect(x - 6 * s, cy + bh * 0.5 * s + 2 * s, 4 * s, 3 * s);
+    ctx.fillRect(x + 2 * s, cy + bh * 0.5 * s + 2 * s, 4 * s, 3 * s);
 
-    // HANDS (little round nubs on sides)
+    // HANDS (stage 2+)
     if (stage >= 2) {
       ctx.fillStyle = colors.highlight;
-      ctx.beginPath();
-      ctx.arc(x - bodyW * s + 1 * s, cy + 10 * s, 3 * s, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(x + bodyW * s - 1 * s, cy + 10 * s, 3 * s, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillRect(x - bw * s - 1 * s, cy + 6 * s, 3 * s, 3 * s);
+      ctx.fillRect(x + bw * s - 2 * s, cy + 6 * s, 3 * s, 3 * s);
     }
 
-    // Stage 4 (Chaos) - glowing aura
+    // Chaos aura (stage 4) - flickering pixel border
     if (stage >= 4) {
-      ctx.strokeStyle = colors.bobble;
-      ctx.lineWidth = 1.5 * s;
-      ctx.globalAlpha = 0.2 + Math.sin(frame * 0.08) * 0.15;
-      ctx.beginPath();
-      ctx.ellipse(x, cy + 4 * s, (bodyW + 6) * s, (bodyH + 6) * s, 0, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.fillStyle = colors.bobble;
+      ctx.globalAlpha = 0.15 + Math.sin(frame * 0.08) * 0.1;
+      // Top aura
+      ctx.fillRect(x - bw * s - 4 * s, cy - bh * 0.5 * s - 4 * s, bw * 2 * s + 8 * s, 2 * s);
+      // Bottom aura
+      ctx.fillRect(x - bw * s - 4 * s, cy + bh * 0.5 * s + 4 * s, bw * 2 * s + 8 * s, 2 * s);
+      // Side auras
+      ctx.fillRect(x - bw * s - 4 * s, cy - bh * 0.5 * s, 2 * s, bh * s + 8 * s);
+      ctx.fillRect(x + bw * s + 2 * s, cy - bh * 0.5 * s, 2 * s, bh * s + 8 * s);
       ctx.globalAlpha = 1;
     }
 
-    // Mood particles
+    // Mood particles (pixel sparkles)
     if (mood === 'happy' && frame % 40 < 8) {
       ctx.fillStyle = colors.bobble;
-      const px1 = x - 20 * s + Math.sin(frame * 0.2) * 10 * s;
-      const py1 = cy - 20 * s - (frame % 40) * s;
+      const px1 = x - 16 * s + Math.round(Math.sin(frame * 0.2) * 8) * s;
+      const py1 = cy - 18 * s - (frame % 40) * s;
       ctx.fillRect(px1, py1, 2 * s, 2 * s);
-      ctx.fillRect(px1 + 25 * s, py1 + 5 * s, 2 * s, 2 * s);
+      ctx.fillRect(px1 + 20 * s, py1 + 4 * s, 2 * s, 2 * s);
     }
 
+    // Tears (pixel)
     if (mood === 'sad' && frame % 60 < 30) {
-      ctx.fillStyle = '#00d2ff';
-      const tearY2 = eyeY + 4 * s + (frame % 60) * 1 * s;
-      ctx.beginPath();
-      ctx.ellipse(x - eyeSpacing, tearY2, 1 * s, 1.5 * s, 0, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillStyle = '#5bc0eb';
+      const tearOff = (frame % 60) * 0.8 * s;
+      ctx.fillRect(x - eyeSpacing, eyeY + eyeSize + tearOff, 2 * s, 3 * s);
     }
 
     // Sleeping Z's
     if (chao.energy < 30) {
-      ctx.fillStyle = '#9a9ab0';
-      ctx.font = `bold ${9 * s}px monospace`;
-      ctx.fillText('z', x + 15 * s + Math.sin(frame * 0.03) * 3 * s, cy - 20 * s + bounce);
-      ctx.font = `bold ${7 * s}px monospace`;
-      ctx.fillText('z', x + 22 * s, cy - 28 * s + bounce);
+      ctx.fillStyle = '#b0b0b0';
+      ctx.font = `${Math.round(8 * s)}px "Press Start 2P", monospace`;
+      ctx.fillText('z', x + 14 * s + Math.round(Math.sin(frame * 0.03) * 2) * s, cy - 18 * s + bounce);
+      ctx.font = `${Math.round(6 * s)}px "Press Start 2P", monospace`;
+      ctx.fillText('z', x + 20 * s, cy - 26 * s + bounce);
     }
   }
 
@@ -1333,14 +1319,17 @@
   }
 
   function drawHeart(ctx, x, y, size) {
-    const s = size / 10;
-    ctx.beginPath();
-    ctx.moveTo(x, y + 3 * s);
-    ctx.bezierCurveTo(x, y, x - 5 * s, y, x - 5 * s, y + 3 * s);
-    ctx.bezierCurveTo(x - 5 * s, y + 6 * s, x, y + 9 * s, x, y + 10 * s);
-    ctx.bezierCurveTo(x, y + 9 * s, x + 5 * s, y + 6 * s, x + 5 * s, y + 3 * s);
-    ctx.bezierCurveTo(x + 5 * s, y, x, y, x, y + 3 * s);
-    ctx.fill();
+    // Pixel heart - 5x5 grid
+    const p = size / 5;
+    // Row 0:  .X.X.
+    ctx.fillRect(x - 2*p, y, p, p);
+    ctx.fillRect(x + p, y, p, p);
+    // Row 1: XXXXX
+    ctx.fillRect(x - 2.5*p, y + p, 5*p, p);
+    // Row 2: .XXX.
+    ctx.fillRect(x - 1.5*p, y + 2*p, 3*p, p);
+    // Row 3: ..X..
+    ctx.fillRect(x - 0.5*p, y + 3*p, p, p);
   }
 
   function drawGarden() {
@@ -1358,14 +1347,23 @@
     ctx.clearRect(0, 0, w, h);
     petAnimFrame++;
 
-    // Garden background - subtle grass
-    const grassGrad = ctx.createLinearGradient(0, h * 0.7, 0, h);
-    grassGrad.addColorStop(0, 'rgba(0, 80, 40, 0.15)');
-    grassGrad.addColorStop(1, 'rgba(0, 60, 30, 0.25)');
-    ctx.fillStyle = grassGrad;
-    ctx.beginPath();
-    ctx.ellipse(w / 2, h + 10, w * 0.6, h * 0.35, 0, 0, Math.PI * 2);
-    ctx.fill();
+    // Garden background - pixel ground
+    ctx.fillStyle = 'rgba(232, 232, 232, 0.06)';
+    ctx.fillRect(0, h * 0.78, w, h * 0.22);
+    // Pixel ground line
+    ctx.fillStyle = 'rgba(232, 232, 232, 0.12)';
+    const groundY = Math.round(h * 0.78);
+    for (let gx = 0; gx < w; gx += 8) {
+      const gy = groundY + ((gx / 8) % 3 === 0 ? -2 : 0);
+      ctx.fillRect(gx, gy, 8, 2);
+    }
+    // Small pixel grass tufts
+    ctx.fillStyle = 'rgba(232, 232, 232, 0.08)';
+    for (let gx = 20; gx < w - 20; gx += 40) {
+      ctx.fillRect(gx, groundY - 4, 2, 4);
+      ctx.fillRect(gx + 4, groundY - 6, 2, 6);
+      ctx.fillRect(gx + 8, groundY - 3, 2, 3);
+    }
 
     // Draw each chao
     const chaoCount = state.chao.length;
