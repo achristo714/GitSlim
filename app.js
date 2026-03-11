@@ -178,33 +178,7 @@
       return;
     }
 
-    const today = dateStr(new Date());
-    const existing = state.entries.findIndex(e => e.date === today);
-    if (existing >= 0) {
-      // Keep the lower weight for the day
-      const prev = state.entries[existing].weight;
-      if (weight < prev) {
-        state.entries[existing].weight = weight;
-        state.entries[existing].ts = Date.now();
-      } else if (weight >= prev) {
-        // Still record the time but keep the lower weight
-        state.entries[existing].ts = Date.now();
-        showToast(`Keeping today's lower: ${prev.toFixed(1)} ${state.unit} (you entered ${weight.toFixed(1)})`, 'success');
-        // Still feed pet and give XP for logging
-        feedPet('log');
-        addXP(10, 'Weight logged!');
-        const streak = calcStreak();
-        if (streak >= 3) { addXP(5, `${streak}-day streak!`); feedPet('streak'); }
-        if (streak >= 7) addXP(10, '7-day streak bonus!');
-        checkAchievements();
-        save();
-        input.value = '';
-        renderDashboard();
-        return;
-      }
-    } else {
-      addEntry(weight);
-    }
+    addEntry(weight);
 
     // Feed the pet
     feedPet('log');
@@ -580,7 +554,7 @@
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, rect.width, rect.height);
 
-    let entries = [...state.entries].sort((a, b) => a.date.localeCompare(b.date));
+    let entries = [...state.entries].sort((a, b) => a.date.localeCompare(b.date) || (a.ts || 0) - (b.ts || 0));
     if (range !== 'all') {
       const days = parseInt(range);
       const cutoff = new Date();
