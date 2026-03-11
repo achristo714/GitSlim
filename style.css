@@ -753,7 +753,7 @@ input:focus, select:focus {
 .history-change.down { color: var(--text); }
 .history-change.up { color: var(--text2); }
 .history-actions { display: flex; gap: 4px; }
-.history-delete {
+.history-edit, .history-delete {
   background: none;
   border: none;
   color: var(--text3);
@@ -761,7 +761,7 @@ input:focus, select:focus {
   font-size: 0.8rem;
   padding: 2px 4px;
 }
-.history-delete:hover { color: var(--text); }
+.history-edit:hover, .history-delete:hover { color: var(--text); }
 
 /* ========== Bottom Nav ========== */
 .bottom-nav {

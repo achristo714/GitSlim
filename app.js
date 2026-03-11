@@ -299,44 +299,42 @@
   }
 
   // ===== Fasting =====
-  function startFast() {
-    state.fasts.push({ start: Date.now(), end: null });
-    save();
-    renderFasting();
-    showToast('Fast started! You got this!', 'success');
-  }
+  // Automatic daily fasting: starts at fastStartHour, ends at fastEndHour next day
+  function getFastingWindow() {
+    const now = new Date();
+    const startHour = state.fastStartHour; // e.g. 20 (8pm)
+    const endHour = state.fastEndHour;     // e.g. 13 (1pm)
 
-  function endFast() {
-    const current = currentFast();
-    if (current) {
-      current.end = Date.now();
-      const hours = (current.end - current.start) / 3600000;
-      if (hours >= getRequiredFastHours()) {
-        state.fastingStreak++;
-        feedPet('fast_complete');
-        addXP(20, `Fast complete! ${hours.toFixed(1)}h`);
-      } else {
-        state.fastingStreak = 0;
-        showToast(`Fast ended early (${hours.toFixed(1)}h)`, 'error');
-      }
-      save();
-      checkAchievements();
-      renderFasting();
+    // Today's fast start
+    const todayStart = new Date(now);
+    todayStart.setHours(startHour, 0, 0, 0);
+
+    // Yesterday's fast start
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+    // End time is endHour on the day after start
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+    todayEnd.setHours(endHour, 0, 0, 0);
+
+    const yesterdayEnd = new Date(yesterdayStart);
+    yesterdayEnd.setDate(yesterdayEnd.getDate() + 1);
+    yesterdayEnd.setHours(endHour, 0, 0, 0);
+
+    // Are we in yesterday's fasting window? (e.g. 8pm yesterday to 1pm today)
+    if (now >= yesterdayStart && now < yesterdayEnd) {
+      return { start: yesterdayStart, end: yesterdayEnd };
     }
-  }
-
-  function currentFast() {
-    if (state.fasts.length === 0) return null;
-    const last = state.fasts[state.fasts.length - 1];
-    return last.end === null ? last : null;
-  }
-
-  function completedFasts() {
-    return state.fasts.filter(f => f.end !== null).length;
+    // Are we in today's fasting window? (e.g. 8pm today onward)
+    if (now >= todayStart && now < todayEnd) {
+      return { start: todayStart, end: todayEnd };
+    }
+    // Eating window — show next fast start
+    return { start: todayStart, end: todayEnd, eating: true };
   }
 
   function getRequiredFastHours() {
-    // Hours from fast start to fast end next day
     let hours = state.fastEndHour - state.fastStartHour;
     if (hours <= 0) hours += 24;
     return hours;
@@ -347,22 +345,29 @@
   }
 
   function renderFastingTimer() {
-    const fast = currentFast();
     const ring = $('#fasting-ring-progress');
     const timeEl = $('#fasting-time');
     const labelEl = $('#fasting-label');
+    const win = getFastingWindow();
+    const now = Date.now();
 
-    if (!fast) {
+    if (win.eating) {
+      // In eating window — countdown to next fast
+      const untilFast = (win.start.getTime() - now) / 1000;
+      const h = Math.floor(untilFast / 3600);
+      const m = Math.floor((untilFast % 3600) / 60);
       ring.style.strokeDashoffset = 339.292;
-      timeEl.textContent = '--:--';
-      labelEl.textContent = 'not fasting';
+      ring.style.stroke = 'var(--green)';
+      timeEl.textContent = `${h}h ${m.toString().padStart(2, '0')}m`;
+      labelEl.textContent = 'eating window';
       return;
     }
 
-    const elapsed = (Date.now() - fast.start) / 1000; // seconds
-    const target = getRequiredFastHours() * 3600;
-    const remaining = Math.max(0, target - elapsed);
-    const progress = Math.min(elapsed / target, 1);
+    // In fasting window
+    const total = (win.end.getTime() - win.start.getTime()) / 1000;
+    const elapsed = (now - win.start.getTime()) / 1000;
+    const remaining = Math.max(0, total - elapsed);
+    const progress = Math.min(elapsed / total, 1);
 
     ring.style.strokeDashoffset = 339.292 * (1 - progress);
 
@@ -370,11 +375,10 @@
       const h = Math.floor(remaining / 3600);
       const m = Math.floor((remaining % 3600) / 60);
       timeEl.textContent = `${h}h ${m.toString().padStart(2, '0')}m`;
-      labelEl.textContent = 'remaining';
+      labelEl.textContent = 'fasting';
     } else {
       timeEl.textContent = 'Done!';
       labelEl.textContent = 'fast complete';
-      ring.style.stroke = 'var(--green)';
     }
 
     if (progress < 0.5) ring.style.stroke = 'var(--accent)';
@@ -477,19 +481,17 @@
   }
 
   function renderFasting() {
-    const fast = currentFast();
-    if (fast) {
-      $('#fasting-start-btn').classList.add('hidden');
-      $('#fasting-end-btn').classList.remove('hidden');
-    } else {
-      $('#fasting-start-btn').classList.remove('hidden');
-      $('#fasting-end-btn').classList.add('hidden');
-    }
-    const completed = completedFasts();
-    const fStreak = state.fastingStreak;
-    $('#fasting-streak-display').textContent = completed > 0
-      ? `${completed} fasts completed | ${fStreak} streak`
-      : 'No fasts completed yet';
+    // Hide manual buttons — fasting is automatic now
+    const startBtn = $('#fasting-start-btn');
+    const endBtn = $('#fasting-end-btn');
+    if (startBtn) startBtn.classList.add('hidden');
+    if (endBtn) endBtn.classList.add('hidden');
+
+    const startH = state.fastStartHour > 12 ? state.fastStartHour - 12 : state.fastStartHour;
+    const startAP = state.fastStartHour >= 12 ? 'PM' : 'AM';
+    const endH = state.fastEndHour > 12 ? state.fastEndHour - 12 : state.fastEndHour;
+    const endAP = state.fastEndHour >= 12 ? 'PM' : 'AM';
+    $('#fasting-streak-display').textContent = `${startH}${startAP} \u2192 ${endH}${endAP} daily`;
     renderFastingTimer();
   }
 
@@ -531,6 +533,7 @@
           <div class="history-weight">${entry.weight.toFixed(1)} ${state.unit}</div>
           <div class="history-change ${cls}">${prev !== null ? `${sign}${diff.toFixed(1)}` : '--'}</div>
           <div class="history-actions">
+            <button class="history-edit" onclick="window.__editEntry(${realIndex})" title="Edit">&#9998;</button>
             <button class="history-delete" onclick="window.__deleteEntry(${realIndex})" title="Delete">&times;</button>
           </div>
         </div>
@@ -538,7 +541,23 @@
     }).join('');
   }
 
-  // Expose delete to onclick
+  // Expose edit/delete to onclick
+  window.__editEntry = (i) => {
+    const entry = state.entries[i];
+    if (!entry) return;
+    const newVal = prompt(`Edit weight (${state.unit}):`, entry.weight.toFixed(1));
+    if (newVal === null) return;
+    const parsed = parseFloat(newVal);
+    if (!parsed || parsed < 50 || parsed > 999) {
+      showToast('Invalid weight', 'error');
+      return;
+    }
+    state.entries[i].weight = parsed;
+    save();
+    renderDashboard();
+    showToast('Entry updated', 'success');
+  };
+
   window.__deleteEntry = (i) => {
     if (confirm('Delete this entry?')) deleteEntry(i);
   };
