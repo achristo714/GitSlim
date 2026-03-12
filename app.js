@@ -3,6 +3,46 @@
 (function () {
   'use strict';
 
+  // ===== Firebase Config =====
+  // To set up your own Firebase project:
+  // 1. Go to https://console.firebase.google.com
+  // 2. Create a new project (or use existing)
+  // 3. Enable Authentication > Google sign-in
+  // 4. Enable Cloud Firestore
+  // 5. Add a web app and copy your config below
+  // 6. Add your domain to Authentication > Settings > Authorized domains
+  const firebaseConfig = {
+    apiKey: "AIzaSyDExample_ReplaceWithYourKey",
+    authDomain: "gitslim-app.firebaseapp.com",
+    projectId: "gitslim-app",
+    storageBucket: "gitslim-app.appspot.com",
+    messagingSenderId: "123456789",
+    appId: "1:123456789:web:abc123"
+  };
+
+  let firebaseApp = null;
+  let auth = null;
+  let db = null;
+  let currentUser = null;
+  let cloudSyncEnabled = false;
+  let syncDebounceTimer = null;
+
+  // Initialize Firebase
+  function initFirebase() {
+    try {
+      if (typeof firebase === 'undefined') return false;
+      firebaseApp = firebase.initializeApp(firebaseConfig);
+      auth = firebase.auth();
+      db = firebase.firestore();
+      // Enable offline persistence so data survives network issues
+      db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+      return true;
+    } catch (e) {
+      console.warn('Firebase init failed:', e.message);
+      return false;
+    }
+  }
+
   // ===== State =====
   const STORAGE_KEY = 'gitslim_data';
   const defaults = {
@@ -38,6 +78,177 @@
 
   function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    // Debounced cloud sync
+    if (cloudSyncEnabled && currentUser) {
+      clearTimeout(syncDebounceTimer);
+      syncDebounceTimer = setTimeout(() => saveToCloud(), 1500);
+    }
+  }
+
+  // ===== Cloud Save/Load =====
+  function saveToCloud() {
+    if (!db || !currentUser) return;
+    const syncBtn = document.querySelector('#sync-status-btn');
+    if (syncBtn) {
+      syncBtn.textContent = '\u2601 Saving...';
+      syncBtn.classList.remove('hidden');
+    }
+    db.collection('users').doc(currentUser.uid).set({
+      state: JSON.stringify(state),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      email: currentUser.email,
+    }).then(() => {
+      if (syncBtn) syncBtn.textContent = '\u2601 Synced';
+    }).catch((err) => {
+      console.error('Cloud save failed:', err);
+      if (syncBtn) syncBtn.textContent = '\u2601 Offline';
+    });
+  }
+
+  function loadFromCloud() {
+    if (!db || !currentUser) return Promise.resolve(null);
+    return db.collection('users').doc(currentUser.uid).get().then(doc => {
+      if (doc.exists && doc.data().state) {
+        return JSON.parse(doc.data().state);
+      }
+      return null;
+    }).catch(err => {
+      console.error('Cloud load failed:', err);
+      return null;
+    });
+  }
+
+  // Merge cloud data with local: keeps whichever has more entries / higher XP
+  function mergeStates(local, cloud) {
+    if (!cloud) return local;
+    if (!local.onboarded && cloud.onboarded) return { ...defaults, ...cloud };
+    if (local.onboarded && !cloud.onboarded) return local;
+
+    // Both onboarded — merge entries by date, keep the one with more progress
+    const merged = { ...local };
+
+    // Merge weight entries (union by date+ts)
+    const entryMap = new Map();
+    local.entries.forEach(e => entryMap.set(e.date + '_' + (e.ts || 0), e));
+    cloud.entries.forEach(e => {
+      const key = e.date + '_' + (e.ts || 0);
+      if (!entryMap.has(key)) entryMap.set(key, e);
+    });
+    merged.entries = Array.from(entryMap.values()).sort((a, b) =>
+      a.date.localeCompare(b.date) || (a.ts || 0) - (b.ts || 0)
+    );
+
+    // Keep higher XP/level/rings
+    merged.xp = Math.max(local.xp || 0, cloud.xp || 0);
+    merged.level = Math.max(local.level || 1, cloud.level || 1);
+    merged.rings = Math.max(local.rings || 0, cloud.rings || 0);
+
+    // Merge achievements (union)
+    const achSet = new Set([...(local.achievements || []), ...(cloud.achievements || [])]);
+    merged.achievements = Array.from(achSet);
+
+    // Merge fasts (union by start timestamp)
+    const fastMap = new Map();
+    (local.fasts || []).forEach(f => fastMap.set(f.start, f));
+    (cloud.fasts || []).forEach(f => {
+      if (!fastMap.has(f.start)) fastMap.set(f.start, f);
+    });
+    merged.fasts = Array.from(fastMap.values()).sort((a, b) => a.start - b.start);
+
+    // Keep whichever has more chao
+    if ((cloud.chao || []).length > (local.chao || []).length) {
+      merged.chao = cloud.chao;
+    }
+
+    // Keep whichever has more inventory items
+    const invSet = new Set([...(local.inventory || []), ...(cloud.inventory || [])]);
+    merged.inventory = Array.from(invSet);
+
+    // Use cloud profile if local name is default
+    if (local.name === 'Friend' && cloud.name && cloud.name !== 'Friend') {
+      merged.name = cloud.name;
+    }
+
+    return merged;
+  }
+
+  // ===== Auth Flow =====
+  function handleGoogleSignIn() {
+    if (!auth) {
+      showToast('Sign-in not available', 'error');
+      return;
+    }
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider).catch(err => {
+      console.error('Sign-in error:', err);
+      if (err.code !== 'auth/popup-closed-by-user') {
+        showToast('Sign-in failed: ' + err.message, 'error');
+      }
+    });
+  }
+
+  function handleSignOut() {
+    if (!auth) return;
+    // Save to cloud first
+    if (cloudSyncEnabled && currentUser) {
+      saveToCloud();
+    }
+    auth.signOut().then(() => {
+      currentUser = null;
+      cloudSyncEnabled = false;
+      updateAuthUI();
+      showToast('Signed out', 'success');
+    });
+  }
+
+  function onAuthStateChanged(user) {
+    currentUser = user;
+    if (user) {
+      cloudSyncEnabled = true;
+      // Load from cloud and merge with local
+      loadFromCloud().then(cloudState => {
+        if (cloudState) {
+          state = mergeStates(state, cloudState);
+          save(); // saves merged to local + triggers cloud sync
+        } else if (state.onboarded) {
+          // First time cloud save — push local to cloud
+          saveToCloud();
+        }
+        updateAuthUI();
+        // If already onboarded, refresh dashboard
+        if (state.onboarded) {
+          showScreen('dashboard');
+          renderDashboard();
+        } else {
+          showScreen('onboarding');
+        }
+      });
+    } else {
+      cloudSyncEnabled = false;
+      updateAuthUI();
+    }
+  }
+
+  function updateAuthUI() {
+    const syncBtn = document.querySelector('#sync-status-btn');
+    const settingsStatus = document.querySelector('#settings-auth-status');
+    const settingsSignin = document.querySelector('#settings-signin-btn');
+    const settingsSignout = document.querySelector('#settings-signout-btn');
+
+    if (currentUser) {
+      if (syncBtn) {
+        syncBtn.classList.remove('hidden');
+        syncBtn.textContent = '\u2601 Synced';
+      }
+      if (settingsStatus) settingsStatus.textContent = currentUser.email;
+      if (settingsSignin) settingsSignin.classList.add('hidden');
+      if (settingsSignout) settingsSignout.classList.remove('hidden');
+    } else {
+      if (syncBtn) syncBtn.classList.add('hidden');
+      if (settingsStatus) settingsStatus.textContent = 'Not signed in (data stored locally)';
+      if (settingsSignin) settingsSignin.classList.remove('hidden');
+      if (settingsSignout) settingsSignout.classList.add('hidden');
+    }
   }
 
   // ===== DOM Refs =====
@@ -46,12 +257,29 @@
 
   // ===== Init =====
   function init() {
-    if (!state.onboarded) {
-      showScreen('onboarding');
+    const firebaseReady = initFirebase();
+
+    if (firebaseReady && auth) {
+      // Listen for auth state changes
+      auth.onAuthStateChanged(onAuthStateChanged);
+
+      // Show auth screen if not onboarded and not already signed in
+      if (!state.onboarded) {
+        showScreen('auth-screen');
+      } else {
+        showScreen('dashboard');
+        renderDashboard();
+      }
     } else {
-      showScreen('dashboard');
-      renderDashboard();
+      // Firebase not available — fallback to local-only
+      if (!state.onboarded) {
+        showScreen('onboarding');
+      } else {
+        showScreen('dashboard');
+        renderDashboard();
+      }
     }
+
     bindEvents();
     startFastingTicker();
   }
@@ -63,6 +291,20 @@
 
   // ===== Events =====
   function bindEvents() {
+    // Auth screen
+    const googleBtn = $('#google-signin-btn');
+    if (googleBtn) googleBtn.addEventListener('click', handleGoogleSignIn);
+    const skipBtn = $('#skip-auth-btn');
+    if (skipBtn) skipBtn.addEventListener('click', () => {
+      showScreen('onboarding');
+    });
+
+    // Settings auth buttons
+    const settingsSignin = $('#settings-signin-btn');
+    if (settingsSignin) settingsSignin.addEventListener('click', handleGoogleSignIn);
+    const settingsSignout = $('#settings-signout-btn');
+    if (settingsSignout) settingsSignout.addEventListener('click', handleSignOut);
+
     // Onboarding
     $('#onboard-start').addEventListener('click', handleOnboard);
 
@@ -881,8 +1123,16 @@
     if (confirm('This will delete ALL your data. Are you sure?')) {
       if (confirm('Really? This cannot be undone.')) {
         localStorage.removeItem(STORAGE_KEY);
+        // Also clear cloud data
+        if (db && currentUser) {
+          db.collection('users').doc(currentUser.uid).delete().catch(() => {});
+        }
         state = { ...defaults };
-        showScreen('onboarding');
+        if (auth) {
+          showScreen('auth-screen');
+        } else {
+          showScreen('onboarding');
+        }
       }
     }
   }

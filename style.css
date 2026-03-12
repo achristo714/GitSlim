@@ -931,6 +931,103 @@ input:focus, select:focus {
   .toast { bottom: 32px; }
 }
 
+/* ========== Auth Screen ========== */
+#auth-screen {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 20px;
+}
+
+.auth-subtitle {
+  color: var(--text2);
+  font-size: 0.5rem;
+  line-height: 1.8;
+  margin: 16px 0 24px;
+}
+
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 20px;
+  background: var(--card);
+  border: var(--border);
+  color: var(--text);
+  font-family: var(--pixel);
+  font-size: 0.6rem;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.btn-google:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 rgba(42, 32, 16, 0.25);
+}
+.btn-google:hover {
+  background: var(--bg3);
+}
+
+.google-icon {
+  flex-shrink: 0;
+}
+
+.btn-skip {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin-top: 12px;
+  background: none;
+  border: var(--border-thin);
+  color: var(--text2);
+  font-family: var(--pixel);
+  font-size: 0.5rem;
+  cursor: pointer;
+}
+.btn-skip:hover {
+  color: var(--text);
+  border-color: var(--text);
+}
+
+.auth-note {
+  color: var(--text3);
+  font-size: 0.4rem;
+  line-height: 1.8;
+  margin-top: 16px;
+  text-align: center;
+}
+
+/* ========== Sync Badge ========== */
+.sync-badge {
+  font-family: var(--pixel);
+  font-size: 0.38rem;
+  padding: 3px 8px;
+  background: var(--card);
+  border: var(--border-thin);
+  color: var(--green);
+  cursor: default;
+  box-shadow: 2px 2px 0 rgba(42, 32, 16, 0.25);
+}
+
+/* ========== Settings Auth ========== */
+.settings-auth-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: var(--border-thin);
+}
+.settings-auth-info {
+  font-size: 0.45rem;
+  color: var(--text2);
+  margin: 6px 0 10px;
+  word-break: break-all;
+  line-height: 1.6;
+}
+
 /* ========== Small phones ========== */
 @media (max-width: 360px) {
   .weight-input { font-size: 1.5rem; width: 140px; }
