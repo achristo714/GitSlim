@@ -824,6 +824,18 @@
       return;
     }
     state.entries[i].weight = parsed;
+
+    const newDate = prompt('Edit date (YYYY-MM-DD):', entry.date);
+    if (newDate !== null) {
+      const trimmed = newDate.trim();
+      if (trimmed.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        state.entries[i].date = trimmed;
+        state.entries.sort((a, b) => a.date.localeCompare(b.date) || (a.ts || 0) - (b.ts || 0));
+      } else if (trimmed !== '') {
+        showToast('Invalid date format', 'error');
+      }
+    }
+
     save();
     renderDashboard();
     showToast('Entry updated', 'success');
