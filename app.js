@@ -4,13 +4,15 @@
   'use strict';
 
   // ===== Firebase Config =====
-  // To set up your own Firebase project:
-  // 1. Go to https://console.firebase.google.com
-  // 2. Create a new project (or use existing)
-  // 3. Enable Authentication > Google sign-in
-  // 4. Enable Cloud Firestore
-  // 5. Add a web app and copy your config below
-  // 6. Add your domain to Authentication > Settings > Authorized domains
+  // Firestore Rules (paste in Firebase Console > Firestore > Rules):
+  //   rules_version = '2';
+  //   service cloud.firestore {
+  //     match /databases/{database}/documents {
+  //       match /users/{userId} {
+  //         allow read, write: if request.auth != null && request.auth.uid == userId;
+  //       }
+  //     }
+  //   }
   const firebaseConfig = {
     apiKey: "AIzaSyD4-fqwrA3IwgU0HYbaFc-c2TrtEI11WQo",
     authDomain: "gitslim.firebaseapp.com",
@@ -34,8 +36,6 @@
       firebaseApp = firebase.initializeApp(firebaseConfig);
       auth = firebase.auth();
       db = firebase.firestore();
-      // Enable offline persistence so data survives network issues
-      db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
       return true;
     } catch (e) {
       console.warn('Firebase init failed:', e.message);
@@ -102,6 +102,10 @@
     }).catch((err) => {
       console.error('Cloud save failed:', err);
       if (syncBtn) syncBtn.textContent = '\u2601 Offline';
+      // Show error on first failure so user knows what to fix
+      if (err.code === 'permission-denied') {
+        showToast('Cloud save blocked — update Firestore rules', 'error');
+      }
     });
   }
 
@@ -201,10 +205,18 @@
     });
   }
 
+  let hasCompletedInitialSync = false;
+
   function onAuthStateChanged(user) {
     currentUser = user;
     if (user) {
       cloudSyncEnabled = true;
+      // Only merge on the first auth callback to avoid overwriting fresh local data
+      if (hasCompletedInitialSync) {
+        updateAuthUI();
+        return;
+      }
+      hasCompletedInitialSync = true;
       // Load from cloud and merge with local
       loadFromCloud().then(cloudState => {
         if (cloudState) {
@@ -225,6 +237,7 @@
       });
     } else {
       cloudSyncEnabled = false;
+      hasCompletedInitialSync = false;
       updateAuthUI();
     }
   }
@@ -392,12 +405,13 @@
       return;
     }
 
-    const petName = ($('#onboard-pet-name').value || '').trim();
+    const petName = ($('#onboard-pet-name').value || '').trim() || 'Buddy';
     state.name = name || 'Friend';
     state.unit = unit;
     state.goalWeight = goal;
     state.heightIn = ft * 12 + inches;
-    state.chao = [createChao(petName || 'Buddy', 'neutral')];
+    state.petName = petName; // persist for migration fallback
+    state.chao = [createChao(petName, 'neutral')];
     state.activeChao = 0;
     state.petLastFed = Date.now();
     state.onboarded = true;
@@ -407,6 +421,10 @@
     addXP(50, 'Welcome bonus!');
 
     save();
+    // Force immediate cloud save (don't rely on debounce for first save)
+    if (cloudSyncEnabled && currentUser) {
+      saveToCloud();
+    }
     showScreen('dashboard');
     renderDashboard();
   }
