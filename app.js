@@ -600,6 +600,17 @@
     return hours;
   }
 
+  // Returns true if currently in a fasting window
+  function currentFast() {
+    const win = getFastingWindow();
+    return win.eating ? null : win;
+  }
+
+  // Returns count of completed fasts
+  function completedFasts() {
+    return (state.fasts || []).filter(f => f.end).length;
+  }
+
   function startFastingTicker() {
     setInterval(renderFastingTimer, 1000);
   }
