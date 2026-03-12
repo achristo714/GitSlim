@@ -12,12 +12,12 @@
   // 5. Add a web app and copy your config below
   // 6. Add your domain to Authentication > Settings > Authorized domains
   const firebaseConfig = {
-    apiKey: "AIzaSyDExample_ReplaceWithYourKey",
-    authDomain: "gitslim-app.firebaseapp.com",
-    projectId: "gitslim-app",
-    storageBucket: "gitslim-app.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "1:123456789:web:abc123"
+    apiKey: "AIzaSyD4-fqwrA3IwgU0HYbaFc-c2TrtEI11WQo",
+    authDomain: "gitslim.firebaseapp.com",
+    projectId: "gitslim",
+    storageBucket: "gitslim.firebasestorage.app",
+    messagingSenderId: "53316050274",
+    appId: "1:53316050274:web:c0a8d1ddb0dae5ed26203b"
   };
 
   let firebaseApp = null;
