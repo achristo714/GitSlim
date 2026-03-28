@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gitslim-v8';
+const CACHE_NAME = 'gitslim-v9';
 const ASSETS = [
   './',
   './index.html',
