@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <title>GitSlim - Weight Tracker</title>
-  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="style.css?v=16">
   <!-- Firebase SDK (compat for vanilla JS) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -330,22 +330,7 @@
           <div class="settings-notify-section">
             <label>Daily Reminder</label>
             <div class="input-row">
-              <select id="notify-hour">
-                <option value="5">5:00 AM</option>
-                <option value="6">6:00 AM</option>
-                <option value="7" selected>7:00 AM</option>
-                <option value="8">8:00 AM</option>
-                <option value="9">9:00 AM</option>
-                <option value="10">10:00 AM</option>
-                <option value="11">11:00 AM</option>
-                <option value="12">12:00 PM</option>
-              </select>
-              <select id="notify-minute">
-                <option value="0">:00</option>
-                <option value="15">:15</option>
-                <option value="30" selected>:30</option>
-                <option value="45">:45</option>
-              </select>
+              <input type="time" id="notify-time" value="07:30">
             </div>
             <div class="input-row" style="margin-top:6px;">
               <button id="notify-toggle-btn" class="btn-secondary" style="width:100%">Enable Notifications</button>
@@ -381,7 +366,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=15"></script>
+  <script src="app.js?v=16"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').then(function(reg) {

@@ -356,29 +356,28 @@
     $('#samsung-import-file').addEventListener('change', importSamsungHealth);
 
     // Notifications
-    $('#notify-toggle-btn').addEventListener('click', () => {
-      if (state.notificationsEnabled) {
-        state.notificationsEnabled = false;
+    const notifyToggle = $('#notify-toggle-btn');
+    const notifyTime = $('#notify-time');
+    if (notifyToggle) {
+      notifyToggle.addEventListener('click', () => {
+        if (state.notificationsEnabled) {
+          state.notificationsEnabled = false;
+          save();
+          updateNotifyUI();
+          showToast('Reminders disabled', 'success');
+        } else {
+          parseNotifyTime();
+          requestNotificationPermission();
+        }
+      });
+    }
+    if (notifyTime) {
+      notifyTime.addEventListener('change', () => {
+        parseNotifyTime();
         save();
         updateNotifyUI();
-        showToast('Reminders disabled', 'success');
-      } else {
-        state.notifyHour = parseInt($('#notify-hour').value) || 7;
-        state.notifyMinute = parseInt($('#notify-minute').value) || 30;
-        requestNotificationPermission();
-      }
-    });
-    // Save time changes even while enabled
-    $('#notify-hour').addEventListener('change', () => {
-      state.notifyHour = parseInt($('#notify-hour').value) || 7;
-      save();
-      updateNotifyUI();
-    });
-    $('#notify-minute').addEventListener('change', () => {
-      state.notifyMinute = parseInt($('#notify-minute').value) || 30;
-      save();
-      updateNotifyUI();
-    });
+      });
+    }
 
     // Reset
     $('#reset-btn').addEventListener('click', handleReset);
@@ -645,6 +644,14 @@
   }
 
   // ===== Daily Reminder Notifications =====
+  function parseNotifyTime() {
+    const el = $('#notify-time');
+    if (!el || !el.value) return;
+    const parts = el.value.split(':');
+    state.notifyHour = parseInt(parts[0]) || 7;
+    state.notifyMinute = parseInt(parts[1]) || 30;
+  }
+
   let lastNotifyDate = localStorage.getItem('gitslim_last_notify') || '';
 
   function requestNotificationPermission() {
@@ -1248,8 +1255,12 @@
     $('#settings-height-in').value = state.heightIn % 12;
     $('#settings-fast-start').value = state.fastStartHour;
     $('#settings-fast-end').value = state.fastEndHour;
-    $('#notify-hour').value = state.notifyHour || 7;
-    $('#notify-minute').value = state.notifyMinute || 30;
+    const nt = $('#notify-time');
+    if (nt) {
+      const h = (state.notifyHour || 7).toString().padStart(2, '0');
+      const m = (state.notifyMinute || 30).toString().padStart(2, '0');
+      nt.value = h + ':' + m;
+    }
     updateNotifyUI();
     $('#settings-modal').classList.remove('hidden');
   }
