@@ -1199,25 +1199,28 @@
   }
 
   // ===== Nav =====
-  function scrollToSection(el) {
-    if (!el) return;
-    const navHeight = 60;
-    const y = el.getBoundingClientRect().top + window.pageYOffset - navHeight;
-    window.scrollTo({ top: y, behavior: 'smooth' });
-  }
+  const NAV_SECTIONS = {
+    home: ['.quick-log-section', '.pet-section', '.fasting-section', '.chart-section', '.stats-section', '.achievements-section', '.history-section'],
+    pet: ['.pet-section'],
+    log: ['.quick-log-section'],
+    stats: ['.chart-section', '.stats-section'],
+    trophies: ['.achievements-section', '.history-section'],
+  };
 
   function handleNavTab(tab) {
+    // All dashboard sections
+    const allSections = ['.quick-log-section', '.pet-section', '.fasting-section', '.chart-section', '.stats-section', '.achievements-section', '.history-section'];
+    const showSections = NAV_SECTIONS[tab] || allSections;
+
+    allSections.forEach(sel => {
+      const el = $(sel);
+      if (el) el.style.display = showSections.includes(sel) ? '' : 'none';
+    });
+
+    window.scrollTo({ top: 0, behavior: 'instant' });
+
     if (tab === 'log') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      setTimeout(() => $('#weight-input').focus(), 400);
-    } else if (tab === 'home') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else if (tab === 'pet') {
-      scrollToSection($('.pet-section'));
-    } else if (tab === 'stats') {
-      scrollToSection($('.chart-section'));
-    } else if (tab === 'trophies') {
-      scrollToSection($('.achievements-section'));
+      setTimeout(() => $('#weight-input').focus(), 100);
     }
   }
 
