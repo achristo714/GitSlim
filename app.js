@@ -363,9 +363,21 @@
         updateNotifyUI();
         showToast('Reminders disabled', 'success');
       } else {
+        state.notifyHour = parseInt($('#notify-hour').value) || 7;
+        state.notifyMinute = parseInt($('#notify-minute').value) || 30;
         requestNotificationPermission();
-        updateNotifyUI();
       }
+    });
+    // Save time changes even while enabled
+    $('#notify-hour').addEventListener('change', () => {
+      state.notifyHour = parseInt($('#notify-hour').value) || 7;
+      save();
+      updateNotifyUI();
+    });
+    $('#notify-minute').addEventListener('change', () => {
+      state.notifyMinute = parseInt($('#notify-minute').value) || 30;
+      save();
+      updateNotifyUI();
     });
 
     // Reset
@@ -1236,6 +1248,8 @@
     $('#settings-height-in').value = state.heightIn % 12;
     $('#settings-fast-start').value = state.fastStartHour;
     $('#settings-fast-end').value = state.fastEndHour;
+    $('#notify-hour').value = state.notifyHour || 7;
+    $('#notify-minute').value = state.notifyMinute || 30;
     updateNotifyUI();
     $('#settings-modal').classList.remove('hidden');
   }
