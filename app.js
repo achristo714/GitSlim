@@ -64,6 +64,9 @@
     petLastFed: null,    // timestamp of last interaction
     rings: 0,            // spendable currency (earned alongside XP)
     inventory: [],       // purchased accessory IDs
+    notificationsEnabled: false,
+    notifyHour: 7,
+    notifyMinute: 30,
   };
 
   let state = loadState();
@@ -295,6 +298,7 @@
 
     bindEvents();
     startFastingTicker();
+    startNotificationChecker();
   }
 
   function showScreen(name) {
@@ -350,6 +354,19 @@
     $('#import-file').addEventListener('change', importCSV);
     $('#samsung-import-btn').addEventListener('click', () => $('#samsung-import-file').click());
     $('#samsung-import-file').addEventListener('change', importSamsungHealth);
+
+    // Notifications
+    $('#notify-toggle-btn').addEventListener('click', () => {
+      if (state.notificationsEnabled) {
+        state.notificationsEnabled = false;
+        save();
+        updateNotifyUI();
+        showToast('Reminders disabled', 'success');
+      } else {
+        requestNotificationPermission();
+        updateNotifyUI();
+      }
+    });
 
     // Reset
     $('#reset-btn').addEventListener('click', handleReset);
@@ -613,6 +630,79 @@
 
   function startFastingTicker() {
     setInterval(renderFastingTimer, 1000);
+  }
+
+  // ===== Daily Reminder Notifications =====
+  let lastNotifyDate = localStorage.getItem('gitslim_last_notify') || '';
+
+  function requestNotificationPermission() {
+    if (!('Notification' in window)) {
+      showToast('Notifications not supported in this browser', 'error');
+      return;
+    }
+    Notification.requestPermission().then(perm => {
+      if (perm === 'granted') {
+        state.notificationsEnabled = true;
+        save();
+        showToast('Daily reminders enabled at 7:30 AM', 'success');
+        startNotificationChecker();
+      } else {
+        state.notificationsEnabled = false;
+        save();
+        showToast('Notification permission denied', 'error');
+      }
+    });
+  }
+
+  function todayStr() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function hasLoggedToday() {
+    const today = todayStr();
+    return state.entries.some(e => e.date === today);
+  }
+
+  function checkAndNotify() {
+    if (!state.notificationsEnabled) return;
+    if (Notification.permission !== 'granted') return;
+
+    const now = new Date();
+    const today = todayStr();
+    if (lastNotifyDate === today) return; // already notified today
+
+    const targetHour = state.notifyHour || 7;
+    const targetMin = state.notifyMinute || 30;
+    if (now.getHours() < targetHour || (now.getHours() === targetHour && now.getMinutes() < targetMin)) return;
+
+    if (hasLoggedToday()) return; // already logged, no need to nag
+
+    lastNotifyDate = today;
+    localStorage.setItem('gitslim_last_notify', today);
+
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification('GitSlim', {
+          body: 'Time to log your weight! Your Chao misses you.',
+          icon: './icon-192.png',
+          badge: './icon-192.png',
+          tag: 'daily-reminder',
+          renotify: true,
+        });
+      });
+    } else {
+      new Notification('GitSlim', {
+        body: 'Time to log your weight! Your Chao misses you.',
+        icon: './icon-192.png',
+        tag: 'daily-reminder',
+      });
+    }
+  }
+
+  function startNotificationChecker() {
+    if (!state.notificationsEnabled) return;
+    checkAndNotify();
+    setInterval(checkAndNotify, 60000); // check every minute
   }
 
   function renderFastingTimer() {
@@ -1143,7 +1233,25 @@
     $('#settings-height-in').value = state.heightIn % 12;
     $('#settings-fast-start').value = state.fastStartHour;
     $('#settings-fast-end').value = state.fastEndHour;
+    updateNotifyUI();
     $('#settings-modal').classList.remove('hidden');
+  }
+
+  function updateNotifyUI() {
+    const btn = $('#notify-toggle-btn');
+    const status = $('#notify-status');
+    if (!btn) return;
+    if (state.notificationsEnabled && Notification.permission === 'granted') {
+      btn.textContent = 'Disable Notifications';
+      const h = state.notifyHour || 7;
+      const m = state.notifyMinute || 30;
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      status.textContent = `Reminders at ${h12}:${m.toString().padStart(2, '0')} ${ampm} if you haven't logged.`;
+    } else {
+      btn.textContent = 'Enable Notifications';
+      status.textContent = '';
+    }
   }
 
   function closeSettings() {

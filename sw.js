@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gitslim-v11';
+const CACHE_NAME = 'gitslim-v12';
 const ASSETS = [
   './',
   './index.html',
@@ -25,6 +25,21 @@ self.addEventListener('activate', (event) => {
     )
   );
   self.clients.claim();
+});
+
+// Notification click - open the app
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes('GitSlim') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      return clients.openWindow('./');
+    })
+  );
 });
 
 // Fetch - network first, fallback to cache (so updates always come through)
