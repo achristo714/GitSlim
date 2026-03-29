@@ -1109,18 +1109,25 @@
   }
 
   // ===== Nav =====
+  function scrollToSection(el) {
+    if (!el) return;
+    const navHeight = 60;
+    const y = el.getBoundingClientRect().top + window.pageYOffset - navHeight;
+    window.scrollTo({ top: y, behavior: 'smooth' });
+  }
+
   function handleNavTab(tab) {
     if (tab === 'log') {
-      $('#weight-input').focus();
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => $('#weight-input').focus(), 400);
     } else if (tab === 'home') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (tab === 'pet') {
-      $('.pet-section').scrollIntoView({ behavior: 'smooth' });
+      scrollToSection($('.pet-section'));
     } else if (tab === 'stats') {
-      $('.stats-section').scrollIntoView({ behavior: 'smooth' });
+      scrollToSection($('.chart-section'));
     } else if (tab === 'trophies') {
-      $('.achievements-section').scrollIntoView({ behavior: 'smooth' });
+      scrollToSection($('.achievements-section'));
     }
   }
 
