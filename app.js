@@ -2219,18 +2219,34 @@
     ctx.clearRect(0, 0, w, h);
     petAnimFrame++;
 
-    // Garden background - pixel ground
-    ctx.fillStyle = 'rgba(42, 32, 16, 0.08)';
-    ctx.fillRect(0, h * 0.78, w, h * 0.22);
-    // Pixel ground line
-    ctx.fillStyle = 'rgba(42, 32, 16, 0.12)';
+    // Garden background - soft pastel sky
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, h);
+    skyGrad.addColorStop(0, '#d4eaf7');
+    skyGrad.addColorStop(0.6, '#e8f4ec');
+    skyGrad.addColorStop(1, '#c5dea0');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, w, h);
+
+    // Soft pixel clouds
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    const cloudX = ((petAnimFrame * 0.3) % (w + 60)) - 30;
+    ctx.fillRect(cloudX, 16, 24, 6);
+    ctx.fillRect(cloudX - 6, 22, 36, 6);
+    ctx.fillRect(cloudX + 60, 10, 18, 5);
+    ctx.fillRect(cloudX + 54, 15, 28, 5);
+
+    // Green ground
+    ctx.fillStyle = '#a8cf6e';
     const groundY = Math.round(h * 0.78);
+    ctx.fillRect(0, groundY, w, h - groundY);
+    // Darker ground line
+    ctx.fillStyle = '#8fba55';
     for (let gx = 0; gx < w; gx += 8) {
       const gy = groundY + ((gx / 8) % 3 === 0 ? -2 : 0);
-      ctx.fillRect(gx, gy, 8, 2);
+      ctx.fillRect(gx, gy, 8, 3);
     }
-    // Small pixel grass tufts
-    ctx.fillStyle = 'rgba(42, 32, 16, 0.1)';
+    // Pixel grass tufts
+    ctx.fillStyle = '#7aad42';
     for (let gx = 20; gx < w - 20; gx += 40) {
       ctx.fillRect(gx, groundY - 4, 2, 4);
       ctx.fillRect(gx + 4, groundY - 6, 2, 6);
