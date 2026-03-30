@@ -8,12 +8,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="description" content="Track your weight loss journey with streaks, fasting timer, and progress analytics">
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <title>GitSlim - Weight Tracker</title>
-  <link rel="stylesheet" href="style.css?v=16">
+  <link rel="stylesheet" href="style.css?v=17">
   <!-- Firebase SDK (compat for vanilla JS) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -250,28 +252,6 @@
         <div class="history-list" id="history-list"></div>
       </section>
 
-      <!-- Nav Bar (mobile) -->
-      <nav class="bottom-nav">
-        <button class="nav-btn active" data-tab="home" title="Home">
-          <span class="nav-icon">&#127968;</span>
-          <span class="nav-label">Home</span>
-        </button>
-        <button class="nav-btn" data-tab="pet" title="Pet">
-          <span class="nav-icon">&#128054;</span>
-          <span class="nav-label">Pet</span>
-        </button>
-        <button class="nav-btn log-btn-nav" data-tab="log" title="Log">
-          <span class="nav-icon">&#10133;</span>
-        </button>
-        <button class="nav-btn" data-tab="stats" title="Stats">
-          <span class="nav-icon">&#128200;</span>
-          <span class="nav-label">Stats</span>
-        </button>
-        <button class="nav-btn" data-tab="trophies" title="Trophies">
-          <span class="nav-icon">&#127942;</span>
-          <span class="nav-label">Trophies</span>
-        </button>
-      </nav>
     </div>
 
     <!-- Settings Modal -->
@@ -366,7 +346,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=17"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').then(function(reg) {

@@ -203,7 +203,7 @@ input:focus, select:focus {
 
 /* ========== Dashboard ========== */
 #dashboard {
-  padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 16px);
+  padding-bottom: 16px;
 }
 
 .dash-header {
@@ -763,50 +763,6 @@ input:focus, select:focus {
 }
 .history-edit:hover, .history-delete:hover { color: var(--text); }
 
-/* ========== Bottom Nav ========== */
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: var(--nav-height);
-  background: var(--bg);
-  border-top: var(--border);
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  padding-bottom: var(--safe-bottom);
-  z-index: 200;
-}
-.nav-btn {
-  background: none;
-  border: none;
-  color: var(--text3);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  cursor: pointer;
-  padding: 6px 10px;
-  font-family: var(--pixel);
-  font-size: 0.35rem;
-}
-.nav-btn.active { color: var(--text); }
-.nav-icon { font-size: 1.2rem; }
-.nav-label { font-size: 0.35rem; }
-
-.log-btn-nav {
-  background: var(--text);
-  color: var(--bg) !important;
-  width: 48px;
-  height: 48px;
-  border: var(--border);
-  margin-top: -20px;
-  box-shadow: 3px 3px 0 rgba(42, 32, 16, 0.3);
-  justify-content: center;
-}
-.log-btn-nav .nav-icon { font-size: 1.4rem; }
-
 /* ========== Modal ========== */
 .modal {
   position: fixed;
@@ -859,7 +815,7 @@ input:focus, select:focus {
 /* ========== Toast ========== */
 .toast {
   position: fixed;
-  bottom: calc(var(--nav-height) + 12px + var(--safe-bottom));
+  bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
   background: var(--bg);
@@ -919,7 +875,6 @@ input:focus, select:focus {
     margin: 0 auto;
     padding-bottom: 32px;
   }
-  .bottom-nav { display: none; }
   .stats-grid { grid-template-columns: repeat(6, 1fr); }
   .achievements-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
   .modal-content {

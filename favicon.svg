@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="30" fill="#d2c4a0"/>
+  <circle cx="32" cy="32" r="28" fill="#c8e8ff"/>
+  <!-- Chao body -->
+  <ellipse cx="32" cy="40" rx="14" ry="12" fill="#6ec6ff"/>
+  <!-- Chao head -->
+  <circle cx="32" cy="26" r="11" fill="#6ec6ff"/>
+  <!-- Eyes -->
+  <ellipse cx="28" cy="25" rx="3" ry="3.5" fill="#fff"/>
+  <ellipse cx="36" cy="25" rx="3" ry="3.5" fill="#fff"/>
+  <circle cx="29" cy="25" r="1.8" fill="#222"/>
+  <circle cx="37" cy="25" r="1.8" fill="#222"/>
+  <!-- Mouth (smile) -->
+  <path d="M29 30 Q32 33 35 30" stroke="#222" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <!-- Teardrop head ball -->
+  <ellipse cx="32" cy="13" rx="3" ry="4" fill="#ffdd44"/>
+  <circle cx="32" cy="10" r="2.5" fill="#ffdd44"/>
+  <!-- Little wings -->
+  <ellipse cx="18" cy="36" rx="5" ry="3" fill="#8ad4ff" transform="rotate(-20 18 36)"/>
+  <ellipse cx="46" cy="36" rx="5" ry="3" fill="#8ad4ff" transform="rotate(20 46 36)"/>
+  <!-- Feet -->
+  <ellipse cx="26" cy="52" rx="5" ry="2.5" fill="#4a9fd8"/>
+  <ellipse cx="38" cy="52" rx="5" ry="2.5" fill="#4a9fd8"/>
+</svg>

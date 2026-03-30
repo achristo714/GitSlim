@@ -404,15 +404,6 @@
     $('#fasting-start-btn').addEventListener('click', startFast);
     $('#fasting-end-btn').addEventListener('click', endFast);
 
-    // Bottom nav (mobile)
-    $$('.nav-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const tab = btn.dataset.tab;
-        $$('.nav-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        handleNavTab(tab);
-      });
-    });
   }
 
   // ===== Onboarding =====
@@ -1218,31 +1209,6 @@
   }
 
   // ===== Nav =====
-  const NAV_SECTIONS = {
-    home: ['.quick-log-section', '.pet-section', '.fasting-section', '.chart-section', '.stats-section', '.achievements-section', '.history-section'],
-    pet: ['.pet-section'],
-    log: ['.quick-log-section'],
-    stats: ['.chart-section', '.stats-section'],
-    trophies: ['.achievements-section', '.history-section'],
-  };
-
-  function handleNavTab(tab) {
-    // All dashboard sections
-    const allSections = ['.quick-log-section', '.pet-section', '.fasting-section', '.chart-section', '.stats-section', '.achievements-section', '.history-section'];
-    const showSections = NAV_SECTIONS[tab] || allSections;
-
-    allSections.forEach(sel => {
-      const el = $(sel);
-      if (el) el.style.display = showSections.includes(sel) ? '' : 'none';
-    });
-
-    window.scrollTo({ top: 0, behavior: 'instant' });
-
-    if (tab === 'log') {
-      setTimeout(() => $('#weight-input').focus(), 100);
-    }
-  }
-
   // ===== Settings =====
   function openSettings() {
     $('#settings-name').value = state.name;
