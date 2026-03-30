@@ -1212,10 +1212,17 @@
   // ===== Settings =====
   function openSettings() {
     $('#settings-name').value = state.name;
-    const ac = getActiveChao();
-    $('#settings-pet-name').value = ac ? ac.name : '';
-    const whichEl = $('#settings-pet-which');
-    if (whichEl && ac) whichEl.textContent = `(${CHAO_TYPES[ac.type] ? CHAO_TYPES[ac.type].name : 'Active'} Chao)`;
+    // Render a name input for each Chao
+    const petNamesEl = $('#settings-pet-names');
+    if (petNamesEl && state.chao && state.chao.length > 0) {
+      petNamesEl.innerHTML = state.chao.map((c, i) => {
+        const typeName = (CHAO_TYPES[c.type] || CHAO_TYPES.neutral).name;
+        return `<div class="input-row" style="margin-bottom:6px;">
+          <input type="text" class="chao-name-input" data-idx="${i}" value="${c.name}" placeholder="Name">
+          <span class="unit-label" style="min-width:70px;text-align:right;">${typeName}</span>
+        </div>`;
+      }).join('');
+    }
     $('#settings-goal').value = state.goalWeight;
     $('#settings-unit').value = state.unit;
     $('#settings-unit-label').textContent = state.unit;
@@ -1256,8 +1263,13 @@
 
   function saveSettings() {
     state.name = $('#settings-name').value.trim() || 'Friend';
-    const settingsChao = getActiveChao();
-    if (settingsChao) settingsChao.name = $('#settings-pet-name').value.trim() || 'Buddy';
+    // Save all Chao names
+    $$('.chao-name-input').forEach(input => {
+      const idx = parseInt(input.dataset.idx);
+      if (state.chao[idx]) {
+        state.chao[idx].name = input.value.trim() || 'Buddy';
+      }
+    });
     state.goalWeight = parseFloat($('#settings-goal').value) || state.goalWeight;
     state.unit = $('#settings-unit').value;
     const ft = parseInt($('#settings-height-ft').value) || 5;

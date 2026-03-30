@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <title>GitSlim - Weight Tracker</title>
-  <link rel="stylesheet" href="style.css?v=18">
+  <link rel="stylesheet" href="style.css?v=19">
   <!-- Firebase SDK (compat for vanilla JS) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -264,8 +264,8 @@
         <div class="modal-body">
           <label>Name</label>
           <input type="text" id="settings-name">
-          <label>Pet Name <span id="settings-pet-which" style="font-size:0.35rem;color:#8b7e5a;"></span></label>
-          <input type="text" id="settings-pet-name">
+          <label>Pet Names</label>
+          <div id="settings-pet-names"></div>
           <label>Goal Weight</label>
           <div class="input-row">
             <input type="number" id="settings-goal" step="0.1" inputmode="decimal">
@@ -346,7 +346,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=18"></script>
+  <script src="app.js?v=19"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').then(function(reg) {

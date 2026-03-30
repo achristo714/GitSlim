@@ -1,9 +1,9 @@
-const CACHE_NAME = 'gitslim-v19';
+const CACHE_NAME = 'gitslim-v20';
 const ASSETS = [
   './',
   './index.html',
-  './style.css?v=18',
-  './app.js?v=18',
+  './style.css?v=19',
+  './app.js?v=19',
   './manifest.json',
   './favicon.svg',
   './icon-192.png',
