@@ -1214,6 +1214,8 @@
     $('#settings-name').value = state.name;
     const ac = getActiveChao();
     $('#settings-pet-name').value = ac ? ac.name : '';
+    const whichEl = $('#settings-pet-which');
+    if (whichEl && ac) whichEl.textContent = `(${CHAO_TYPES[ac.type] ? CHAO_TYPES[ac.type].name : 'Active'} Chao)`;
     $('#settings-goal').value = state.goalWeight;
     $('#settings-unit').value = state.unit;
     $('#settings-unit-label').textContent = state.unit;
